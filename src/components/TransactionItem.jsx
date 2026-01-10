@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ArrowUpRight, ArrowDownLeft, Trash2, Edit2 } from 'lucide-react';
-import { formatCurrency } from '../utils/formatters';
+import { formatCurrency, formatDate } from '../utils/formatters';
 
 export default function TransactionItem({ tx, onDelete, onEdit }) {
     const [isSwiped, setIsSwiped] = useState(false);
@@ -42,7 +42,7 @@ export default function TransactionItem({ tx, onDelete, onEdit }) {
                 </div>
                 <div className="flex-1">
                     <p className="font-bold text-gray-800 leading-tight">{tx.title}</p>
-                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">{tx.category} • {tx.date}</p>
+                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">{tx.category} • {formatDate(tx.date)}</p>
                 </div>
                 <div className="text-right">
                     <p className={`font-black tracking-tighter ${tx.type === 'income' ? 'text-emerald-600' : 'text-gray-800'}`}>

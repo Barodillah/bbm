@@ -22,7 +22,7 @@ async function callOpenRouter(systemPrompt, userMessage) {
         headers: {
             'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
             'Content-Type': 'application/json',
-            'HTTP-Referer': 'https://jjm-finance.vercel.app',
+            'HTTP-Referer': 'https://jejemoney.vercel.app',
             'X-Title': 'JJM Finance'
         },
         body: JSON.stringify({
