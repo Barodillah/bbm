@@ -51,8 +51,8 @@ export default function AIPage() {
             id: Date.now(),
             type: 'ai',
             text: `Halo! 👋 Saya AI Financial Assistant kamu.\n\n${analysis.isPositive
-                    ? `Keuanganmu sehat dengan savings rate ${analysis.savingsRate}%!`
-                    : 'Perhatian! Pengeluaran melebihi pemasukan.'
+                ? `Keuanganmu sehat dengan savings rate ${analysis.savingsRate}%!`
+                : 'Perhatian! Pengeluaran melebihi pemasukan.'
                 }\n\nAda yang bisa saya bantu? Tanyakan saja tentang keuanganmu.`
         };
         setMessages([welcomeMessage]);
@@ -69,15 +69,15 @@ export default function AIPage() {
 
         if (q.includes('pengeluaran') || q.includes('expense') || q.includes('keluar')) {
             return `Total pengeluaran bulan ini: **${formatCurrency(stats.totalExpense)}**\n\n${analysis.topExpenseCategory
-                    ? `Kategori terbesar: ${analysis.topExpenseCategory[0]} (${formatCurrency(analysis.topExpenseCategory[1])})`
-                    : 'Belum ada data pengeluaran.'
+                ? `Kategori terbesar: ${analysis.topExpenseCategory[0]} (${formatCurrency(analysis.topExpenseCategory[1])})`
+                : 'Belum ada data pengeluaran.'
                 }`;
         }
 
         if (q.includes('pemasukan') || q.includes('income') || q.includes('masuk') || q.includes('gaji')) {
             return `Total pemasukan bulan ini: **${formatCurrency(stats.totalIncome)}**\n\n${analysis.topIncomeCategory
-                    ? `Sumber terbesar: ${analysis.topIncomeCategory[0]} (${formatCurrency(analysis.topIncomeCategory[1])})`
-                    : 'Belum ada data pemasukan.'
+                ? `Sumber terbesar: ${analysis.topIncomeCategory[0]} (${formatCurrency(analysis.topIncomeCategory[1])})`
+                : 'Belum ada data pemasukan.'
                 }`;
         }
 
@@ -137,7 +137,7 @@ export default function AIPage() {
     return (
         <div className="min-h-screen bg-gradient-to-b from-indigo-600 to-purple-700 flex flex-col">
             {/* Header */}
-            <div className="p-4 flex items-center gap-4">
+            <div className="sticky top-0 z-10 p-4 flex items-center gap-4 bg-gradient-to-r from-indigo-600 to-purple-700">
                 <button
                     onClick={() => navigate(-1)}
                     className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center text-white hover:bg-white/30 transition-colors"
@@ -165,14 +165,14 @@ export default function AIPage() {
                         >
                             <div className={`flex items-start gap-2 max-w-[85%] ${msg.type === 'user' ? 'flex-row-reverse' : ''}`}>
                                 <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${msg.type === 'user'
-                                        ? 'bg-indigo-600 text-white'
-                                        : 'bg-gradient-to-br from-indigo-500 to-purple-500 text-white'
+                                    ? 'bg-indigo-600 text-white'
+                                    : 'bg-gradient-to-br from-indigo-500 to-purple-500 text-white'
                                     }`}>
                                     {msg.type === 'user' ? <User size={14} /> : <Sparkles size={14} />}
                                 </div>
                                 <div className={`p-3 rounded-2xl ${msg.type === 'user'
-                                        ? 'bg-indigo-600 text-white rounded-tr-md'
-                                        : 'bg-gray-100 text-gray-800 rounded-tl-md'
+                                    ? 'bg-indigo-600 text-white rounded-tr-md'
+                                    : 'bg-gray-100 text-gray-800 rounded-tl-md'
                                     }`}>
                                     <p className="text-sm whitespace-pre-line leading-relaxed">{msg.text}</p>
                                 </div>

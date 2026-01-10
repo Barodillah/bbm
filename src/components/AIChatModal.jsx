@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { X, Sparkles, TrendingUp, TrendingDown, PieChart, Wallet, Send, MessageCircle, ArrowRight } from 'lucide-react';
 import { useApp } from '../context/AppContext';
@@ -59,8 +60,8 @@ export default function AIChatModal({ isOpen, onClose }) {
         switch (questionId) {
             case 1:
                 return `Total pengeluaran bulan ini adalah **${formatCurrency(stats.totalExpense)}**. ${analysis.topExpenseCategory
-                        ? `Kategori terbesar: ${analysis.topExpenseCategory[0]} (${formatCurrency(analysis.topExpenseCategory[1])})`
-                        : 'Belum ada data pengeluaran.'
+                    ? `Kategori terbesar: ${analysis.topExpenseCategory[0]} (${formatCurrency(analysis.topExpenseCategory[1])})`
+                    : 'Belum ada data pengeluaran.'
                     }`;
             case 2:
                 return analysis.topExpenseCategory
@@ -98,16 +99,10 @@ export default function AIChatModal({ isOpen, onClose }) {
 
     if (!isOpen) return null;
 
-    return (
-        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center">
-            {/* Backdrop */}
-            <div
-                className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-                onClick={onClose}
-            />
-
+    return createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-end md:items-center justify-center bg-black/40 backdrop-blur-sm p-0 md:p-4" onClick={onClose}>
             {/* Modal */}
-            <div className="relative w-full max-w-md mx-4 mb-20 md:mb-0 bg-white rounded-3xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-300">
+            <div className="bg-white w-full max-w-lg rounded-t-[32px] md:rounded-[24px] overflow-hidden flex flex-col max-h-[95vh] shadow-2xl" onClick={(e) => e.stopPropagation()}>
                 {/* Header */}
                 <div className="bg-gradient-to-r from-indigo-600 to-purple-600 p-5 text-white">
                     <div className="flex items-center justify-between">
@@ -165,8 +160,8 @@ export default function AIChatModal({ isOpen, onClose }) {
                                 key={q.id}
                                 onClick={() => handleQuestionClick(q)}
                                 className={`p-3 rounded-xl text-left transition-all ${selectedQuestion?.id === q.id
-                                        ? 'bg-indigo-600 text-white'
-                                        : 'bg-gray-50 hover:bg-indigo-50 text-gray-700'
+                                    ? 'bg-indigo-600 text-white'
+                                    : 'bg-gray-50 hover:bg-indigo-50 text-gray-700'
                                     }`}
                             >
                                 <q.icon size={16} className={selectedQuestion?.id === q.id ? 'text-indigo-200' : 'text-indigo-500'} />
@@ -222,6 +217,7 @@ export default function AIChatModal({ isOpen, onClose }) {
                     </button>
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 }

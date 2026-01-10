@@ -1,10 +1,11 @@
 import { useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { formatCurrency } from '../utils/formatters';
 
 export default function EditTransactionModal({ isOpen, onClose, transaction }) {
-    const { categories, updateTransaction } = useApp();
+    const { categories, catColors, updateTransaction } = useApp();
     const [display, setDisplay] = useState('0');
     const [title, setTitle] = useState('');
     const [type, setType] = useState('expense');
@@ -68,9 +69,9 @@ export default function EditTransactionModal({ isOpen, onClose, transaction }) {
         onClose();
     };
 
-    return (
-        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/40 backdrop-blur-sm p-0 md:p-4">
-            <div className="bg-white w-full max-w-lg rounded-t-[32px] md:rounded-[24px] overflow-hidden flex flex-col max-h-[95vh] shadow-2xl">
+    return createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-end md:items-center justify-center bg-black/40 backdrop-blur-sm p-0 md:p-4" onClick={onClose}>
+            <div className="bg-white w-full max-w-lg rounded-t-[32px] md:rounded-[24px] overflow-hidden flex flex-col max-h-[95vh] shadow-2xl" onClick={(e) => e.stopPropagation()}>
                 <div className="p-6 flex justify-between items-center border-b border-gray-50">
                     <h2 className="text-xl font-bold text-gray-800">Edit Transaksi</h2>
                     <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full">
@@ -125,8 +126,13 @@ export default function EditTransactionModal({ isOpen, onClose, transaction }) {
                                     <button
                                         key={cat.id}
                                         onClick={() => setCategory(cat.name)}
-                                        className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all ${category === cat.name ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-500'
+                                        className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all ${category === cat.name ? 'text-white shadow-md' : 'text-gray-600 opacity-60'
                                             }`}
+                                        style={{
+                                            backgroundColor: category === cat.name
+                                                ? (catColors[cat.name] || '#6366F1')
+                                                : `${catColors[cat.name] || '#6366F1'}30`
+                                        }}
                                     >
                                         {cat.name}
                                     </button>
@@ -144,10 +150,10 @@ export default function EditTransactionModal({ isOpen, onClose, transaction }) {
                                 key={key}
                                 onClick={() => key === 'OK' ? handleSave() : handleNumpad(key.toString())}
                                 className={`h-14 rounded-2xl text-xl font-bold transition-all flex items-center justify-center ${key === 'OK'
-                                        ? 'bg-indigo-600 text-white shadow-lg'
-                                        : key === '+' || key === 'C' || key === 'DEL'
-                                            ? 'bg-indigo-50 text-indigo-600'
-                                            : 'bg-gray-100 text-gray-800'
+                                    ? 'bg-indigo-600 text-white shadow-lg'
+                                    : key === '+' || key === 'C' || key === 'DEL'
+                                        ? 'bg-indigo-50 text-indigo-600'
+                                        : 'bg-gray-100 text-gray-800'
                                     }`}
                             >
                                 {key}
@@ -156,6 +162,7 @@ export default function EditTransactionModal({ isOpen, onClose, transaction }) {
                     </div>
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 }
