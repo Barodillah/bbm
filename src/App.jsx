@@ -10,6 +10,7 @@ import HomePage from './pages/HomePage';
 import HistoryPage from './pages/HistoryPage';
 import AnalysisPage from './pages/AnalysisPage';
 import CategorySettingsPage from './pages/CategorySettingsPage';
+import AIPage from './pages/AIPage';
 
 export default function App() {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -22,8 +23,20 @@ export default function App() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, [setIsScrolled]);
 
+  // Check if on AI page (fullscreen mode)
+  const isAIPage = location.pathname === '/ai';
+
   // Hide balance card on analysis and categories page
   const showBalanceCard = !['analysis', 'categories'].includes(location.pathname.replace('/', '') || 'home');
+
+  // Fullscreen layout for AI page
+  if (isAIPage) {
+    return (
+      <Routes>
+        <Route path="/ai" element={<AIPage />} />
+      </Routes>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#F9FAFB] text-gray-900 flex flex-col md:flex-row">
@@ -44,6 +57,7 @@ export default function App() {
         </div>
       </main>
 
+      {/* Add Transaction FAB - Right side */}
       <button
         onClick={() => setIsModalOpen(true)}
         className="fixed bottom-20 md:bottom-8 right-6 md:right-12 w-14 h-14 bg-indigo-600 text-white rounded-2xl shadow-xl shadow-indigo-300 flex items-center justify-center z-50 hover:scale-110 active:scale-95 transition-all"
@@ -56,3 +70,4 @@ export default function App() {
     </div>
   );
 }
+
