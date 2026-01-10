@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { formatCurrency } from '../utils/formatters';
+import DateInput from './DateInput';
 
 export default function EditTransactionModal({ isOpen, onClose, transaction }) {
     const { categories, catColors, updateTransaction } = useApp();
@@ -114,11 +115,10 @@ export default function EditTransactionModal({ isOpen, onClose, transaction }) {
                             value={title}
                             onChange={(e) => setTitle(e.target.value)}
                         />
-                        <input
-                            type="date"
-                            className="w-full px-4 py-3 bg-gray-50 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
+                        <DateInput
                             value={date}
                             onChange={(e) => setDate(e.target.value)}
+                            placeholder="Pilih tanggal"
                         />
                         <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
                             {filteredCategories.length > 0 ? (

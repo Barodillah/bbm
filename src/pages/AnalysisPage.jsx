@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { TrendingUp, ArrowUpRight, ArrowDownLeft, Calendar, ChevronDown, X } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { formatCurrency } from '../utils/formatters';
+import DateInput from '../components/DateInput';
 
 export default function AnalysisPage() {
     const { transactions, catColors } = useApp();
@@ -195,20 +196,18 @@ export default function AnalysisPage() {
                             <div className="flex flex-col sm:flex-row gap-2">
                                 <div className="flex-1">
                                     <label className="text-[10px] text-gray-400 mb-1 block">Dari</label>
-                                    <input
-                                        type="date"
+                                    <DateInput
                                         value={customRange.start}
                                         onChange={(e) => setCustomRange(prev => ({ ...prev, start: e.target.value }))}
-                                        className="w-full px-3 py-2 bg-gray-50 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+                                        placeholder="Pilih tanggal"
                                     />
                                 </div>
                                 <div className="flex-1">
                                     <label className="text-[10px] text-gray-400 mb-1 block">Sampai</label>
-                                    <input
-                                        type="date"
+                                    <DateInput
                                         value={customRange.end}
                                         onChange={(e) => setCustomRange(prev => ({ ...prev, end: e.target.value }))}
-                                        className="w-full px-3 py-2 bg-gray-50 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+                                        placeholder="Pilih tanggal"
                                     />
                                 </div>
                                 <div className="flex items-end">

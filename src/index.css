@@ -1,5 +1,30 @@
 @import "tailwindcss";
 
+/* Prevent Safari mobile zoom on input focus */
+@supports (-webkit-touch-callout: none) {
+  input,
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
+
+/* Disable touch zoom gestures */
+html {
+  touch-action: manipulation;
+}
+
+/* Ensure all inputs have minimum 16px on mobile */
+@media screen and (max-width: 768px) {
+  input,
+  textarea,
+  select,
+  input::placeholder,
+  textarea::placeholder {
+    font-size: 16px !important;
+  }
+}
+
 /* Hide scrollbar for category selector */
 .scrollbar-hide::-webkit-scrollbar {
   display: none;

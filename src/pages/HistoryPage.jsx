@@ -4,6 +4,7 @@ import { useApp } from '../context/AppContext';
 import BalanceCard from '../components/BalanceCard';
 import TransactionItem from '../components/TransactionItem';
 import EditTransactionModal from '../components/EditTransactionModal';
+import DateInput from '../components/DateInput';
 
 export default function HistoryPage() {
     const { transactions, deleteTransaction, categories, catColors } = useApp();
@@ -215,20 +216,16 @@ export default function HistoryPage() {
                         <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Range Tanggal</p>
                         <div className="flex flex-col sm:flex-row gap-2">
                             <div className="flex-1">
-                                <input
-                                    type="date"
+                                <DateInput
                                     value={customRange.start}
                                     onChange={(e) => setCustomRange(prev => ({ ...prev, start: e.target.value }))}
-                                    className="w-full px-3 py-2 bg-gray-50 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500"
                                     placeholder="Dari"
                                 />
                             </div>
                             <div className="flex-1">
-                                <input
-                                    type="date"
+                                <DateInput
                                     value={customRange.end}
                                     onChange={(e) => setCustomRange(prev => ({ ...prev, end: e.target.value }))}
-                                    className="w-full px-3 py-2 bg-gray-50 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500"
                                     placeholder="Sampai"
                                 />
                             </div>

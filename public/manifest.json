@@ -1,0 +1,18 @@
+{
+    "name": "JJM - Jurnal Jeje Money",
+    "short_name": "JJM",
+    "description": "Aplikasi pencatatan keuangan pribadi yang simpel dan mudah digunakan",
+    "start_url": "/",
+    "display": "standalone",
+    "orientation": "portrait",
+    "background_color": "#F9FAFB",
+    "theme_color": "#4F46E5",
+    "icons": [
+        {
+            "src": "/icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any maskable"
+        }
+    ]
+}
