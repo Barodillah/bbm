@@ -25,7 +25,11 @@ export const transactionsApi = {
     getAll: async () => {
         const res = await fetch(getEndpoint('transactions'));
         if (!res.ok) throw new Error('Failed to fetch transactions');
-        return res.json();
+        const data = await res.json();
+        return data.map(tx => ({
+            ...tx,
+            amount: Number(tx.amount)
+        }));
     },
 
     create: async (transaction) => {
@@ -35,7 +39,9 @@ export const transactionsApi = {
             body: JSON.stringify(transaction)
         });
         if (!res.ok) throw new Error('Failed to create transaction');
-        return res.json();
+        const data = await res.json();
+        // Ensure amount is a number in the returned object
+        return { ...data, amount: Number(data.amount) };
     },
 
     update: async (id, transaction) => {
@@ -45,7 +51,12 @@ export const transactionsApi = {
             body: JSON.stringify(transaction)
         });
         if (!res.ok) throw new Error('Failed to update transaction');
-        return res.json();
+        const data = await res.json();
+        // data might be { success: true } or the object. If it's just success, we return the input transaction updated.
+        if (data.success) {
+            return { ...transaction, amount: Number(transaction.amount) };
+        }
+        return { ...data, amount: Number(data.amount) };
     },
 
     delete: async (id) => {
