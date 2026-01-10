@@ -20,13 +20,18 @@ export default function CategorySettingsPage() {
     const [editType, setEditType] = useState('expense');
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(null);
 
-    const handleAdd = () => {
+    const handleAdd = async () => {
         if (!newName.trim()) return;
-        addCategory(newName.trim(), newColor, newType);
-        setNewName('');
-        setNewColor(PRESET_COLORS[0]);
-        setNewType('expense');
-        setIsAdding(false);
+        try {
+            await addCategory(newName.trim(), newColor, newType);
+            setNewName('');
+            setNewColor(PRESET_COLORS[0]);
+            setNewType('expense');
+            setIsAdding(false);
+        } catch (err) {
+            console.error('Failed to add category:', err);
+            alert('Gagal menambah kategori. Coba lagi.');
+        }
     };
 
     const handleEdit = (cat) => {
@@ -36,15 +41,25 @@ export default function CategorySettingsPage() {
         setEditType(cat.type || 'expense');
     };
 
-    const handleSaveEdit = () => {
+    const handleSaveEdit = async () => {
         if (!editName.trim()) return;
-        updateCategory(editingId, editName.trim(), editColor, editType);
-        setEditingId(null);
+        try {
+            await updateCategory(editingId, editName.trim(), editColor, editType);
+            setEditingId(null);
+        } catch (err) {
+            console.error('Failed to update category:', err);
+            alert('Gagal mengupdate kategori. Coba lagi.');
+        }
     };
 
-    const handleDelete = (id) => {
-        deleteCategory(id);
-        setShowDeleteConfirm(null);
+    const handleDelete = async (id) => {
+        try {
+            await deleteCategory(id);
+            setShowDeleteConfirm(null);
+        } catch (err) {
+            console.error('Failed to delete category:', err);
+            alert('Gagal menghapus kategori. Coba lagi.');
+        }
     };
 
     const TypeSelector = ({ value, onChange, size = 'normal' }) => (
@@ -224,8 +239,8 @@ export default function CategorySettingsPage() {
                                         <p className="font-bold text-gray-800">{cat.name}</p>
                                         <div className="flex items-center gap-2">
                                             <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${cat.type === 'income'
-                                                    ? 'bg-emerald-50 text-emerald-600'
-                                                    : 'bg-rose-50 text-rose-600'
+                                                ? 'bg-emerald-50 text-emerald-600'
+                                                : 'bg-rose-50 text-rose-600'
                                                 }`}>
                                                 {cat.type === 'income' ? 'Pemasukan' : 'Pengeluaran'}
                                             </span>

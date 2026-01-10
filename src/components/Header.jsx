@@ -3,12 +3,14 @@ import { Search, X, TrendingUp, TrendingDown } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { formatCurrency } from '../utils/formatters';
 import EditTransactionModal from './EditTransactionModal';
+import ChangePinModal from './ChangePinModal';
 
 export default function Header() {
     const { isScrolled, transactions, catColors } = useApp();
     const [isSearchOpen, setIsSearchOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [editingTransaction, setEditingTransaction] = useState(null);
+    const [isChangePinOpen, setIsChangePinOpen] = useState(false);
     const inputRef = useRef(null);
 
     // Focus input when search opens
@@ -43,8 +45,11 @@ export default function Header() {
             <header className={`sticky top-0 z-30 transition-all duration-300 w-full px-4 pt-2 pb-2 pt-safe-area ${isScrolled ? 'bg-white/80 backdrop-blur-md shadow-sm' : 'bg-transparent'
                 }`}>
                 <div className="flex items-center justify-between max-w-md mx-auto md:max-w-none">
-                    {/* Left side - Logo/Profile */}
-                    <div className={`flex items-center gap-3 transition-all duration-300 ${isSearchOpen ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100'}`}>
+                    {/* Left side - Logo/Profile - Clickable for PIN change */}
+                    <div
+                        onClick={() => setIsChangePinOpen(true)}
+                        className={`flex items-center gap-3 transition-all duration-300 cursor-pointer hover:opacity-80 ${isSearchOpen ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100'}`}
+                    >
                         <div className="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center text-white font-black shadow-lg shadow-indigo-200">JJ</div>
                         <div>
                             <p className="text-[10px] text-gray-400 font-bold uppercase tracking-tighter leading-none">Hello,</p>
@@ -127,6 +132,12 @@ export default function Header() {
                 isOpen={!!editingTransaction}
                 onClose={() => setEditingTransaction(null)}
                 transaction={editingTransaction}
+            />
+
+            {/* Change PIN Modal */}
+            <ChangePinModal
+                isOpen={isChangePinOpen}
+                onClose={() => setIsChangePinOpen(false)}
             />
         </>
     );

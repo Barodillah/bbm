@@ -46,18 +46,23 @@ export default function TransactionModal({ isOpen, onClose }) {
 
     const currentTotal = calculateTotal();
 
-    const handleSave = () => {
+    const handleSave = async () => {
         if (currentTotal === 0 || !title || !category) return;
-        addTransaction({
-            title,
-            amount: currentTotal,
-            category,
-            type,
-            date: new Date().toISOString().split('T')[0]
-        });
-        setDisplay('0');
-        setTitle('');
-        onClose();
+        try {
+            await addTransaction({
+                title,
+                amount: currentTotal,
+                category,
+                type,
+                date: new Date().toISOString().split('T')[0]
+            });
+            setDisplay('0');
+            setTitle('');
+            onClose();
+        } catch (err) {
+            console.error('Failed to save transaction:', err);
+            alert('Gagal menyimpan transaksi. Coba lagi.');
+        }
     };
 
     return (

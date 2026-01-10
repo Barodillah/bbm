@@ -58,16 +58,21 @@ export default function EditTransactionModal({ isOpen, onClose, transaction }) {
 
     const currentTotal = calculateTotal();
 
-    const handleSave = () => {
+    const handleSave = async () => {
         if (currentTotal === 0 || !title || !category) return;
-        updateTransaction(transaction.id, {
-            title,
-            amount: currentTotal,
-            category,
-            type,
-            date
-        });
-        onClose();
+        try {
+            await updateTransaction(transaction.id, {
+                title,
+                amount: currentTotal,
+                category,
+                type,
+                date
+            });
+            onClose();
+        } catch (err) {
+            console.error('Failed to update transaction:', err);
+            alert('Gagal mengupdate transaksi. Coba lagi.');
+        }
     };
 
     return createPortal(

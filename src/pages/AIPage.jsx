@@ -1,19 +1,20 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Sparkles, Send, TrendingUp, TrendingDown, MessageCircle, User } from 'lucide-react';
+import { ArrowLeft, Sparkles, Send, TrendingUp, TrendingDown, User, Trash2 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { formatCurrency } from '../utils/formatters';
+import { chatApi } from '../services/api';
 
 export default function AIPage() {
     const navigate = useNavigate();
-    const { transactions, stats, catColors } = useApp();
+    const { transactions, stats } = useApp();
     const [messages, setMessages] = useState([]);
     const [inputValue, setInputValue] = useState('');
     const [isTyping, setIsTyping] = useState(false);
     const messagesEndRef = useRef(null);
 
-    // Generate AI Analysis
-    const analysis = useMemo(() => {
+    // Generate financial context for AI
+    const financialContext = useMemo(() => {
         const expenses = transactions.filter(t => t.type === 'expense');
         const incomes = transactions.filter(t => t.type === 'income');
 
@@ -22,13 +23,13 @@ export default function AIPage() {
             return acc;
         }, {});
 
-        const topExpenseCategory = Object.entries(expenseByCategory)
-            .sort((a, b) => b[1] - a[1])[0];
-
         const incomeByCategory = incomes.reduce((acc, t) => {
             acc[t.category] = (acc[t.category] || 0) + t.amount;
             return acc;
         }, {});
+
+        const topExpenseCategory = Object.entries(expenseByCategory)
+            .sort((a, b) => b[1] - a[1])[0];
 
         const topIncomeCategory = Object.entries(incomeByCategory)
             .sort((a, b) => b[1] - a[1])[0];
@@ -37,75 +38,44 @@ export default function AIPage() {
             ? ((stats.totalIncome - stats.totalExpense) / stats.totalIncome * 100).toFixed(1)
             : 0;
 
-        return {
-            topExpenseCategory,
-            topIncomeCategory,
-            savingsRate,
-            isPositive: stats.totalBalance >= 0,
-        };
+        return `
+- Total Saldo: ${formatCurrency(stats.totalBalance)}
+- Total Pemasukan: ${formatCurrency(stats.totalIncome)}
+- Total Pengeluaran: ${formatCurrency(stats.totalExpense)}
+- Savings Rate: ${savingsRate}%
+- Kategori pengeluaran terbesar: ${topExpenseCategory ? `${topExpenseCategory[0]} (${formatCurrency(topExpenseCategory[1])})` : 'Belum ada'}
+- Kategori pemasukan terbesar: ${topIncomeCategory ? `${topIncomeCategory[0]} (${formatCurrency(topIncomeCategory[1])})` : 'Belum ada'}
+- Jumlah transaksi: ${transactions.length}
+`;
     }, [transactions, stats]);
 
     // Add initial welcome message
     useEffect(() => {
+        const savingsRate = stats.totalIncome > 0
+            ? ((stats.totalIncome - stats.totalExpense) / stats.totalIncome * 100).toFixed(1)
+            : 0;
+        const isPositive = stats.totalBalance >= 0;
+
         const welcomeMessage = {
             id: Date.now(),
             type: 'ai',
-            text: `Halo! 👋 Saya AI Financial Assistant kamu.\n\n${analysis.isPositive
-                ? `Keuanganmu sehat dengan savings rate ${analysis.savingsRate}%!`
+            text: `Halo! 👋 Saya AI Financial Assistant kamu.\n\n${isPositive
+                ? `Keuanganmu sehat dengan savings rate ${savingsRate}%!`
                 : 'Perhatian! Pengeluaran melebihi pemasukan.'
                 }\n\nAda yang bisa saya bantu? Tanyakan saja tentang keuanganmu.`
         };
         setMessages([welcomeMessage]);
-    }, []);
+    }, [stats]);
 
     // Auto scroll to bottom
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages]);
 
-    // Generate AI response based on user question
-    const generateResponse = (question) => {
-        const q = question.toLowerCase();
+    // Send message to AI API
+    const handleSend = async () => {
+        if (!inputValue.trim() || isTyping) return;
 
-        if (q.includes('pengeluaran') || q.includes('expense') || q.includes('keluar')) {
-            return `Total pengeluaran bulan ini: **${formatCurrency(stats.totalExpense)}**\n\n${analysis.topExpenseCategory
-                ? `Kategori terbesar: ${analysis.topExpenseCategory[0]} (${formatCurrency(analysis.topExpenseCategory[1])})`
-                : 'Belum ada data pengeluaran.'
-                }`;
-        }
-
-        if (q.includes('pemasukan') || q.includes('income') || q.includes('masuk') || q.includes('gaji')) {
-            return `Total pemasukan bulan ini: **${formatCurrency(stats.totalIncome)}**\n\n${analysis.topIncomeCategory
-                ? `Sumber terbesar: ${analysis.topIncomeCategory[0]} (${formatCurrency(analysis.topIncomeCategory[1])})`
-                : 'Belum ada data pemasukan.'
-                }`;
-        }
-
-        if (q.includes('saldo') || q.includes('balance') || q.includes('total')) {
-            return `Saldo saat ini: **${formatCurrency(stats.totalBalance)}**\n\nIncome: ${formatCurrency(stats.totalIncome)}\nExpense: ${formatCurrency(stats.totalExpense)}`;
-        }
-
-        if (q.includes('boros') || q.includes('terbesar') || q.includes('paling')) {
-            return analysis.topExpenseCategory
-                ? `Kategori paling boros: **${analysis.topExpenseCategory[0]}** dengan total **${formatCurrency(analysis.topExpenseCategory[1])}**\n\nCoba kurangi pengeluaran di kategori ini!`
-                : 'Belum ada data pengeluaran.';
-        }
-
-        if (q.includes('tips') || q.includes('saran') || q.includes('hemat')) {
-            return `💡 Tips Keuangan:\n\n1. ${analysis.topExpenseCategory ? `Kurangi ${analysis.topExpenseCategory[0]}` : 'Catat semua transaksi'}\n2. Target savings rate: 20%\n3. Buat budget bulanan\n4. Review pengeluaran mingguan\n5. Hindari impulse buying`;
-        }
-
-        if (q.includes('halo') || q.includes('hai') || q.includes('hello') || q.includes('hi')) {
-            return 'Halo! 👋 Ada yang bisa saya bantu tentang keuanganmu?';
-        }
-
-        return `Saya mengerti pertanyaan tentang "${question}".\n\nBerikut ringkasan keuanganmu:\n• Saldo: ${formatCurrency(stats.totalBalance)}\n• Income: ${formatCurrency(stats.totalIncome)}\n• Expense: ${formatCurrency(stats.totalExpense)}\n\nCoba tanya tentang: pengeluaran, pemasukan, saldo, tips hemat, atau kategori boros.`;
-    };
-
-    const handleSend = () => {
-        if (!inputValue.trim()) return;
-
-        // Add user message
         const userMessage = {
             id: Date.now(),
             type: 'user',
@@ -115,22 +85,45 @@ export default function AIPage() {
         setInputValue('');
         setIsTyping(true);
 
-        // Simulate AI response
-        setTimeout(() => {
+        try {
+            const response = await chatApi.sendMessage(userMessage.text, financialContext);
+
             const aiResponse = {
                 id: Date.now() + 1,
                 type: 'ai',
-                text: generateResponse(userMessage.text)
+                text: response.message || 'Maaf, saya tidak bisa memproses permintaan Anda saat ini.'
             };
             setMessages(prev => [...prev, aiResponse]);
+        } catch (error) {
+            console.error('AI chat error:', error);
+            const errorResponse = {
+                id: Date.now() + 1,
+                type: 'ai',
+                text: '❌ Maaf, terjadi kesalahan. Coba lagi nanti.'
+            };
+            setMessages(prev => [...prev, errorResponse]);
+        } finally {
             setIsTyping(false);
-        }, 1000);
+        }
     };
 
     const handleKeyPress = (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
             handleSend();
+        }
+    };
+
+    const handleClearChat = async () => {
+        try {
+            await chatApi.clearHistory();
+            setMessages([{
+                id: Date.now(),
+                type: 'ai',
+                text: 'Chat dibersihkan! 🧹 Ada yang bisa saya bantu?'
+            }]);
+        } catch (error) {
+            console.error('Failed to clear chat:', error);
         }
     };
 
@@ -144,15 +137,22 @@ export default function AIPage() {
                 >
                     <ArrowLeft size={20} />
                 </button>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 flex-1">
                     <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
                         <Sparkles size={20} className="text-white" />
                     </div>
                     <div>
                         <h1 className="font-bold text-white text-lg">AI Financial Assistant</h1>
-                        <p className="text-xs text-indigo-200">Always here to help</p>
+                        <p className="text-xs text-indigo-200">Powered by MIMO AI</p>
                     </div>
                 </div>
+                <button
+                    onClick={handleClearChat}
+                    className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center text-white hover:bg-white/30 transition-colors"
+                    title="Clear chat"
+                >
+                    <Trash2 size={18} />
+                </button>
             </div>
 
             {/* Chat Area */}
@@ -210,11 +210,12 @@ export default function AIPage() {
                         onChange={(e) => setInputValue(e.target.value)}
                         onKeyPress={handleKeyPress}
                         placeholder="Ketik pertanyaan..."
-                        className="flex-1 bg-gray-100 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
+                        disabled={isTyping}
+                        className="flex-1 bg-gray-100 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-indigo-500 transition-all disabled:opacity-50"
                     />
                     <button
                         onClick={handleSend}
-                        disabled={!inputValue.trim()}
+                        disabled={!inputValue.trim() || isTyping}
                         className="w-12 h-12 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl flex items-center justify-center text-white disabled:opacity-50 hover:scale-105 active:scale-95 transition-all"
                     >
                         <Send size={20} />
