@@ -40,7 +40,7 @@ export default function Header() {
 
     return (
         <>
-            <header className={`sticky top-0 z-30 transition-all duration-300 w-full px-4 pt-4 pb-2 ${isScrolled ? 'bg-white/80 backdrop-blur-md shadow-sm py-3' : 'bg-transparent'
+            <header className={`sticky top-0 z-30 transition-all duration-300 w-full px-4 pt-2 pb-2 ${isScrolled ? 'bg-white/80 backdrop-blur-md shadow-sm' : 'bg-transparent'
                 }`}>
                 <div className="flex items-center justify-between max-w-md mx-auto md:max-w-none">
                     {/* Left side - Logo/Profile */}

@@ -4,7 +4,7 @@ import { useApp } from '../context/AppContext';
 import { formatCurrency } from '../utils/formatters';
 
 export default function TransactionModal({ isOpen, onClose }) {
-    const { categories, addTransaction } = useApp();
+    const { categories, catColors, addTransaction } = useApp();
     const [display, setDisplay] = useState('0');
     const [title, setTitle] = useState('');;
     const [type, setType] = useState('expense');
@@ -111,8 +111,13 @@ export default function TransactionModal({ isOpen, onClose }) {
                                     <button
                                         key={cat.id}
                                         onClick={() => setCategory(cat.name)}
-                                        className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all ${category === cat.name ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-500'
+                                        className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all ${category === cat.name ? 'text-white shadow-md' : 'text-gray-600 opacity-60'
                                             }`}
+                                        style={{
+                                            backgroundColor: category === cat.name
+                                                ? (catColors[cat.name] || '#6366F1')
+                                                : `${catColors[cat.name] || '#6366F1'}30`
+                                        }}
                                     >
                                         {cat.name}
                                     </button>
@@ -130,10 +135,10 @@ export default function TransactionModal({ isOpen, onClose }) {
                                 key={key}
                                 onClick={() => key === 'OK' ? handleSave() : handleNumpad(key.toString())}
                                 className={`h-14 rounded-2xl text-xl font-bold transition-all flex items-center justify-center ${key === 'OK'
-                                        ? 'bg-indigo-600 text-white shadow-lg'
-                                        : key === '+' || key === 'C' || key === 'DEL'
-                                            ? 'bg-indigo-50 text-indigo-600'
-                                            : 'bg-gray-100 text-gray-800'
+                                    ? 'bg-indigo-600 text-white shadow-lg'
+                                    : key === '+' || key === 'C' || key === 'DEL'
+                                        ? 'bg-indigo-50 text-indigo-600'
+                                        : 'bg-gray-100 text-gray-800'
                                     }`}
                             >
                                 {key}

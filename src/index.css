@@ -2,6 +2,7 @@
 
 /* Prevent Safari mobile zoom on input focus */
 @supports (-webkit-touch-callout: none) {
+
   input,
   textarea,
   select {
@@ -14,8 +15,24 @@ html {
   touch-action: manipulation;
 }
 
+/* iOS Safe Area - for notch/dynamic island */
+body {
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+/* Standalone PWA mode adjustments */
+@media all and (display-mode: standalone) {
+  body {
+    padding-top: env(safe-area-inset-top);
+  }
+}
+
 /* Ensure all inputs have minimum 16px on mobile */
 @media screen and (max-width: 768px) {
+
   input,
   textarea,
   select,
@@ -40,6 +57,7 @@ html {
   from {
     opacity: 0;
   }
+
   to {
     opacity: 1;
   }
@@ -49,6 +67,7 @@ html {
   from {
     transform: translateY(1rem);
   }
+
   to {
     transform: translateY(0);
   }
