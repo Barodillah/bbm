@@ -13,6 +13,13 @@ export default function AIPage() {
     const [isTyping, setIsTyping] = useState(false);
     const messagesEndRef = useRef(null);
 
+    const QUICK_QUESTIONS = [
+        "Analisis pengeluaran bulan ini 📊",
+        "Apakah keuanganku sehat? 🏥",
+        "Saran berhemat dong 💡",
+        "Total tabungan saat ini 💰"
+    ];
+
     // Generate financial context for AI
     const financialContext = useMemo(() => {
         const expenses = transactions.filter(t => t.type === 'expense');
@@ -87,19 +94,29 @@ export default function AIPage() {
 
         try {
             const response = await chatApi.sendMessage(userMessage.text, financialContext);
+            console.log('✅ AI Raw Response:', response); // Debugging
+
+            // API chat.js returns { response: "..." }
+            // API chat.php (if exists) might return { message: "..." }
+            const replyText = response.response || response.message;
+
+            if (!replyText) {
+                console.error('❌ Invalid response format:', response);
+                throw new Error('Format respon tidak dikenali');
+            }
 
             const aiResponse = {
                 id: Date.now() + 1,
                 type: 'ai',
-                text: response.message || 'Maaf, saya tidak bisa memproses permintaan Anda saat ini.'
+                text: replyText
             };
             setMessages(prev => [...prev, aiResponse]);
         } catch (error) {
-            console.error('AI chat error:', error);
+            console.error('❌ AI Chat Error Detail:', error);
             const errorResponse = {
                 id: Date.now() + 1,
                 type: 'ai',
-                text: '❌ Maaf, terjadi kesalahan. Coba lagi nanti.'
+                text: `❌ Maaf, terjadi kesalahan.\nDebug: ${error.message}`
             };
             setMessages(prev => [...prev, errorResponse]);
         } finally {
@@ -201,25 +218,43 @@ export default function AIPage() {
                 </div>
             </div>
 
-            {/* Input Area */}
-            <div className="sticky bottom-0 z-10 bg-white p-4 pb-safe-area border-t border-gray-100">
-                <div className="flex items-center gap-3">
-                    <input
-                        type="text"
-                        value={inputValue}
-                        onChange={(e) => setInputValue(e.target.value)}
-                        onKeyPress={handleKeyPress}
-                        placeholder="Ketik pertanyaan..."
-                        disabled={isTyping}
-                        className="flex-1 bg-gray-100 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-indigo-500 transition-all disabled:opacity-50"
-                    />
-                    <button
-                        onClick={handleSend}
-                        disabled={!inputValue.trim() || isTyping}
-                        className="w-12 h-12 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl flex items-center justify-center text-white disabled:opacity-50 hover:scale-105 active:scale-95 transition-all"
-                    >
-                        <Send size={20} />
-                    </button>
+            {/* Quick Questions & Input Area */}
+            <div className="sticky bottom-0 z-10 bg-white border-t border-gray-100">
+                {/* Quick Questions (Horizontal Scroll) */}
+                <div className="px-4 pt-3 pb-1 overflow-x-auto scrollbar-hide">
+                    <div className="flex gap-2">
+                        {QUICK_QUESTIONS.map((q, idx) => (
+                            <button
+                                key={idx}
+                                onClick={() => setInputValue(q)}
+                                disabled={isTyping}
+                                className="whitespace-nowrap px-4 py-2 bg-indigo-50 text-indigo-600 rounded-full text-xs font-semibold hover:bg-indigo-100 transition-colors disabled:opacity-50"
+                            >
+                                {q}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                <div className="p-4 pb-safe-area">
+                    <div className="flex items-center gap-3">
+                        <input
+                            type="text"
+                            value={inputValue}
+                            onChange={(e) => setInputValue(e.target.value)}
+                            onKeyPress={handleKeyPress}
+                            placeholder="Ketik pertanyaan..."
+                            disabled={isTyping}
+                            className="flex-1 bg-gray-100 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-indigo-500 transition-all disabled:opacity-50"
+                        />
+                        <button
+                            onClick={handleSend}
+                            disabled={!inputValue.trim() || isTyping}
+                            className="w-12 h-12 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl flex items-center justify-center text-white disabled:opacity-50 hover:scale-105 active:scale-95 transition-all"
+                        >
+                            <Send size={20} />
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
