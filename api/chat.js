@@ -36,87 +36,54 @@ async function callOpenRouter(systemPrompt, userMessage) {
     return response.json();
 }
 
-// Step 1: Generate SQL query from natural language
-async function generateSQLQuery(userQuestion) {
-    const queryPrompt = `Kamu adalah ahli SQL yang mengkonversi pertanyaan bahasa Indonesia menjadi query MySQL.
+// Get recent transaction data for context
+async function getTransactionContext(conn) {
+    try {
+        // Get summary stats
+        const [summary] = await conn.execute(`
+            SELECT 
+                SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END) as total_income,
+                SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END) as total_expense,
+                COUNT(*) as total_transactions
+            FROM transactions
+            WHERE MONTH(date) = MONTH(CURDATE()) AND YEAR(date) = YEAR(CURDATE())
+        `);
 
-Tabel yang tersedia: transactions
-Kolom:
-- id (INT, primary key)
-- title (VARCHAR) - nama/deskripsi transaksi
-- amount (DECIMAL) - jumlah uang dalam Rupiah
-- type (VARCHAR) - "income" untuk pemasukan, "expense" untuk pengeluaran
-- category (VARCHAR) - kategori transaksi
-- date (DATE) - tanggal transaksi format YYYY-MM-DD
-- created_at (TIMESTAMP) - waktu dibuat
+        // Get category breakdown
+        const [categories] = await conn.execute(`
+            SELECT category, type, SUM(amount) as total, COUNT(*) as count
+            FROM transactions
+            WHERE MONTH(date) = MONTH(CURDATE()) AND YEAR(date) = YEAR(CURDATE())
+            GROUP BY category, type
+            ORDER BY total DESC
+            LIMIT 10
+        `);
 
-ATURAN PENTING:
-1. HANYA kembalikan query SQL murni, tanpa penjelasan, tanpa markdown, tanpa backticks
-2. Query harus SELECT only (tidak boleh UPDATE, DELETE, INSERT, DROP, dll)
-3. Jika pertanyaan tidak memerlukan data (seperti sapaan), kembalikan: NONE
-4. Gunakan alias yang mudah dibaca untuk kolom
-5. Format tanggal dengan DATE_FORMAT jika perlu
-6. Untuk pertanyaan tentang "bulan ini", gunakan MONTH(date) = MONTH(CURDATE()) AND YEAR(date) = YEAR(CURDATE())
-7. Untuk pertanyaan tentang "minggu ini", gunakan YEARWEEK(date) = YEARWEEK(CURDATE())
-8. Untuk pertanyaan tentang "hari ini", gunakan DATE(date) = CURDATE()
+        // Get recent transactions
+        const [recent] = await conn.execute(`
+            SELECT title, amount, type, category, DATE_FORMAT(date, '%d %b %Y') as tanggal
+            FROM transactions
+            ORDER BY date DESC, created_at DESC
+            LIMIT 10
+        `);
 
-Contoh:
-- "Berapa total pengeluaran bulan ini?" -> SELECT SUM(amount) as total FROM transactions WHERE type = 'expense' AND MONTH(date) = MONTH(CURDATE()) AND YEAR(date) = YEAR(CURDATE())
-- "Kategori apa yang paling banyak?" -> SELECT category, COUNT(*) as jumlah, SUM(amount) as total FROM transactions GROUP BY category ORDER BY jumlah DESC LIMIT 5
-- "Halo JJ" -> NONE`;
+        // Get today's transactions
+        const [today] = await conn.execute(`
+            SELECT title, amount, type, category
+            FROM transactions
+            WHERE DATE(date) = CURDATE()
+        `);
 
-    const response = await callOpenRouter(queryPrompt, userQuestion);
-    const sqlQuery = response.choices?.[0]?.message?.content?.trim();
-    return sqlQuery;
-}
-
-// Step 2: Analyze data and generate human-readable response
-async function analyzeAndRespond(userQuestion, queryResult, sqlQuery) {
-    const analysisPrompt = `Kamu adalah asisten keuangan pribadi bernama JJ untuk **Kanjeng Jihan Mutia**. 
-Selalu panggil user dengan nama "Kanjeng Jihan Mutia" atau "Kanjeng" saja.
-
-Kamu baru saja mengambil data dari database untuk menjawab pertanyaan Kanjeng.
-
-PERTANYAAN KANJENG:
-"${userQuestion}"
-
-QUERY YANG DIJALANKAN:
-${sqlQuery}
-
-HASIL DATA:
-${JSON.stringify(queryResult, null, 2)}
-
-TUGAS:
-1. Analisis data di atas
-2. Jelaskan hasilnya dalam bahasa Indonesia yang mudah dipahami
-3. Berikan insight atau saran keuangan jika relevan
-4. Format angka uang dengan format Rupiah (contoh: Rp 1.500.000)
-5. Gunakan emoji untuk membuat percakapan hangat dan menarik 💕
-6. Jawab dengan ramah dan personal untuk Kanjeng Jihan Mutia
-
-Jika data kosong, jelaskan bahwa belum ada data yang sesuai.`;
-
-    const response = await callOpenRouter(analysisPrompt, "Tolong analisis dan jelaskan data di atas untuk Kanjeng.");
-    return response.choices?.[0]?.message?.content;
-}
-
-// Simple response for non-data questions
-async function simpleResponse(userQuestion) {
-    const simplePrompt = `Kamu adalah asisten keuangan pribadi bernama JJ untuk **Kanjeng Jihan Mutia**. 
-Selalu panggil user dengan nama "Kanjeng Jihan Mutia" atau "Kanjeng" saja dalam percakapan.
-
-Kamu membantu Kanjeng Jihan Mutia mengelola keuangan dengan ramah, profesional, dan penuh perhatian.
-Jawab dengan singkat, hangat, dan gunakan emoji. 💕
-
-Jika Kanjeng bertanya tentang data keuangan, beritahu bahwa kamu bisa membantu menganalisis:
-- Total pemasukan/pengeluaran
-- Kategori terbanyak
-- Transaksi terbesar
-- Ringkasan keuangan harian/mingguan/bulanan
-- Dan pertanyaan keuangan lainnya`;
-
-    const response = await callOpenRouter(simplePrompt, userQuestion);
-    return response.choices?.[0]?.message?.content;
+        return {
+            summary: summary[0],
+            categories,
+            recent,
+            today
+        };
+    } catch (err) {
+        console.error('Error getting context:', err);
+        return null;
+    }
 }
 
 export default async function handler(req, res) {
@@ -148,45 +115,50 @@ export default async function handler(req, res) {
                 ['user', message]
             );
 
-            let aiMessage;
+            // Get transaction context
+            const context = await getTransactionContext(conn);
 
-            try {
-                // Step 1: Generate SQL query from user question
-                console.log('Step 1: Generating SQL query...');
-                const sqlQuery = await generateSQLQuery(message);
-                console.log('Generated SQL:', sqlQuery);
+            const systemPrompt = `Kamu adalah asisten keuangan pribadi bernama JJ untuk **Kanjeng Jihan Mutia**. 
+Selalu panggil user dengan nama "Jeje" dalam percakapan.
 
-                if (sqlQuery && sqlQuery !== 'NONE' && sqlQuery.toUpperCase().startsWith('SELECT')) {
-                    // Validate query is safe (SELECT only)
-                    const upperQuery = sqlQuery.toUpperCase();
-                    if (upperQuery.includes('DROP') || upperQuery.includes('DELETE') ||
-                        upperQuery.includes('UPDATE') || upperQuery.includes('INSERT') ||
-                        upperQuery.includes('TRUNCATE') || upperQuery.includes('ALTER')) {
-                        throw new Error('Query tidak diizinkan');
-                    }
+Kamu membantu Jeje mengelola keuangan dengan ramah, profesional, dan penuh perhatian.
+Jawab dengan singkat, hangat, dan gunakan emoji. 💕
 
-                    // Step 2: Execute the query
-                    console.log('Step 2: Executing query...');
-                    const [queryResult] = await conn.execute(sqlQuery);
-                    console.log('Query result:', queryResult);
+DATA KEUANGAN JEJE BULAN INI:
+${context ? `
+📊 RINGKASAN:
+- Total Pemasukan: Rp ${(context.summary?.total_income || 0).toLocaleString('id-ID')}
+- Total Pengeluaran: Rp ${(context.summary?.total_expense || 0).toLocaleString('id-ID')}
+- Saldo: Rp ${((context.summary?.total_income || 0) - (context.summary?.total_expense || 0)).toLocaleString('id-ID')}
+- Jumlah Transaksi: ${context.summary?.total_transactions || 0}
 
-                    // Step 3: Analyze and generate response
-                    console.log('Step 3: Analyzing data...');
-                    aiMessage = await analyzeAndRespond(message, queryResult, sqlQuery);
-                } else {
-                    // Non-data question, use simple response
-                    console.log('Non-data question, using simple response...');
-                    aiMessage = await simpleResponse(message);
-                }
-            } catch (queryError) {
-                console.error('Query/Analysis error:', queryError);
-                // Fallback to simple response if query fails
-                aiMessage = await simpleResponse(message);
+📂 KATEGORI:
+${context.categories?.map(c => `- ${c.category} (${c.type}): Rp ${Number(c.total).toLocaleString('id-ID')} (${c.count}x)`).join('\n') || 'Belum ada data'}
+
+📝 TRANSAKSI TERAKHIR:
+${context.recent?.map(t => `- ${t.tanggal}: ${t.title} - Rp ${Number(t.amount).toLocaleString('id-ID')} (${t.type === 'income' ? '💰' : '💸'} ${t.category})`).join('\n') || 'Belum ada transaksi'}
+
+📅 TRANSAKSI HARI INI:
+${context.today?.length ? context.today.map(t => `- ${t.title}: Rp ${Number(t.amount).toLocaleString('id-ID')} (${t.type === 'income' ? '💰' : '💸'})`).join('\n') : 'Belum ada transaksi hari ini'}
+` : 'Belum ada data keuangan.'}
+
+Berikan jawaban yang relevan dan personal berdasarkan data di atas. Jika Jeje bertanya tentang keuangan, gunakan data yang tersedia.`;
+
+            // Single AI call with full context
+            const aiResponse = await callOpenRouter(systemPrompt, message);
+
+            if (aiResponse.error) {
+                console.error('OpenRouter Error:', aiResponse.error);
+                return res.status(200).json({
+                    response: 'Maaf Jeje, ada kendala pada sistem. Coba lagi ya! 🙏'
+                });
             }
+
+            const aiMessage = aiResponse.choices?.[0]?.message?.content;
 
             if (!aiMessage) {
                 return res.status(200).json({
-                    response: 'Maaf Kanjeng, ada kendala saat memproses pertanyaan. Coba lagi ya! 🙏'
+                    response: 'Maaf Jeje, tidak ada respon. Coba lagi ya! 🙏'
                 });
             }
 
