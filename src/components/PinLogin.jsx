@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { authApi } from '../services/api';
+import toast from 'react-hot-toast';
 
 /**
  * Calculator that doubles as a hidden PIN login
@@ -81,30 +83,32 @@ export default function PinLogin({ onSuccess }) {
         }
     };
 
+
+
+    // ... (in tryPinLogin)
+
     // Try PIN login
     const tryPinLogin = async (pin) => {
         setIsLoading(true);
 
         try {
-            const res = await fetch('/api/auth', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ pin })
-            });
-
-            const data = await res.json();
+            const data = await authApi.login(pin);
 
             if (data.success) {
                 sessionStorage.setItem('jjm_auth', 'true');
                 sessionStorage.setItem('jjm_pin', pin);
+                toast.success('Login berhasil!');
                 onSuccess();
             } else {
                 triggerShake();
                 setDisplay('0');
+                toast.error(data.error || 'PIN salah');
             }
         } catch (err) {
+            console.error('Login error:', err);
             triggerShake();
             setDisplay('Error');
+            toast.error('Gagal login: ' + err.message);
         } finally {
             setIsLoading(false);
         }

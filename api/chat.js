@@ -9,7 +9,7 @@ const dbConfig = {
     database: 'u444914729_jjm'
 };
 
-const OPENROUTER_API_KEY = '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';
+const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const AI_MODEL = 'xiaomi/mimo-v2-flash:free';
 
 async function getConnection() {
