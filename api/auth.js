@@ -4,11 +4,11 @@
 import mysql from 'mysql2/promise';
 
 const dbConfig = {
-    host: '153.92.15.23',
-    port: 3306,
-    user: 'u444914729_jjm',
-    password: 'Sagala.4321',
-    database: 'u444914729_jjm'
+    host: process.env.DB_HOST,
+    port: parseInt(process.env.DB_PORT || '3306'),
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_NAME
 };
 
 async function getConnection() {
