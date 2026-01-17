@@ -3,7 +3,10 @@ import pool from './db.js';
 
 const router = express.Router();
 
-// Ensure settings table exists
+// Test endpoint - GET /api/auth
+router.get('/', (req, res) => {
+    res.json({ status: 'auth router working' });
+});
 async function ensureSettingsTable() {
     try {
         await pool.execute(`
