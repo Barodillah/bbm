@@ -29,6 +29,11 @@ app.use('/api/categories', categoriesHandler);
 app.use('/api/chat', chatHandler);
 app.use('/api/setup', setupHandler);
 
+// Simple Ping (No DB)
+app.get('/api/ping', (req, res) => {
+  res.json({ pong: true, time: new Date().toISOString() });
+});
+
 // Global Error Handler
 app.use((err, req, res, next) => {
   console.error('Global Server Error:', err);
@@ -50,6 +55,8 @@ app.get('/api/health', async (req, res) => {
     res.status(500).json({ status: 'error', environment: 'vercel-express', db: 'disconnected', error: error.message });
   }
 });
+
+console.log("[Server] App initialized");
 
 export default app;
 
