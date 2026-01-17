@@ -1,14 +1,30 @@
 import mysql from 'mysql2/promise';
-import dotenv from 'dotenv';
 
-dotenv.config();
+// Note: dotenv not needed in Vercel - env vars are injected automatically
+// Only load dotenv in local development
+if (process.env.NODE_ENV !== 'production') {
+    try {
+        const dotenv = await import('dotenv');
+        dotenv.config();
+    } catch (e) {
+        // dotenv may not be available
+    }
+}
 
 console.log('[DB] Initializing Pool with:', {
-    host: process.env.DB_HOST,
-    user: process.env.DB_USER,
-    db: process.env.DB_NAME,
-    port: process.env.DB_PORT
+    host: process.env.DB_HOST || 'MISSING',
+    user: process.env.DB_USER || 'MISSING',
+    db: process.env.DB_NAME || 'MISSING',
+    port: process.env.DB_PORT || '3306',
+    ssl: process.env.DB_SSL || 'auto'
 });
+
+// Validate required env vars
+const requiredEnvVars = ['DB_HOST', 'DB_USER', 'DB_PASSWORD', 'DB_NAME'];
+const missingVars = requiredEnvVars.filter(v => !process.env[v]);
+if (missingVars.length > 0) {
+    console.error('[DB] Missing environment variables:', missingVars);
+}
 
 const pool = mysql.createPool({
     host: process.env.DB_HOST,
@@ -17,14 +33,12 @@ const pool = mysql.createPool({
     password: process.env.DB_PASSWORD,
     database: process.env.DB_NAME,
     waitForConnections: true,
-    connectionLimit: 10,
-    connectTimeout: 5000, // Fail within 5s
-    // Enable SSL for Vercel/Cloud DBs (Production)
-    ...((process.env.NODE_ENV === 'production' || process.env.DB_SSL === 'true') && {
-        ssl: {
-            rejectUnauthorized: false
-        }
-    })
+    connectionLimit: 5, // Lower for serverless
+    connectTimeout: 10000, // 10s timeout for cloud DBs
+    // Enable SSL for cloud databases
+    ssl: {
+        rejectUnauthorized: false
+    }
 });
 
 export default pool;
