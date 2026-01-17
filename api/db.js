@@ -1,15 +1,7 @@
 import mysql from 'mysql2/promise';
 
-// Note: dotenv not needed in Vercel - env vars are injected automatically
-// Only load dotenv in local development
-if (process.env.NODE_ENV !== 'production') {
-    try {
-        const dotenv = await import('dotenv');
-        dotenv.config();
-    } catch (e) {
-        // dotenv may not be available
-    }
-}
+// Note: In Vercel, env vars are injected automatically
+// dotenv is only needed for local development
 
 console.log('[DB] Initializing Pool with:', {
     host: process.env.DB_HOST || 'MISSING',
