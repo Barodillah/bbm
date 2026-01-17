@@ -20,22 +20,31 @@ async function verifyPin(pin) {
 
 // POST / - Login
 router.post('/', async (req, res) => {
+    console.log("[Auth] Login request received", req.body);
     try {
         const { pin } = req.body;
 
         if (!pin || pin.length !== 4 || !/^\d{4}$/.test(pin)) {
+            console.log("[Auth] Invalid PIN format");
             return res.status(400).json({ success: false, error: 'PIN harus 4 digit angka' });
         }
 
+        console.log("[Auth] Verifying PIN against DB...");
         const isValid = await verifyPin(pin);
+        console.log("[Auth] PIN Verification Result:", isValid);
+
         if (isValid) {
             return res.status(200).json({ success: true, message: 'Login berhasil' });
         } else {
             return res.status(401).json({ success: false, error: 'PIN salah' });
         }
     } catch (error) {
-        console.error('Auth error:', error);
-        return res.status(500).json({ error: 'Server error: ' + error.message });
+        console.error('[Auth] Login Critical Error:', error);
+        return res.status(500).json({
+            success: false,
+            error: 'Server error: ' + error.message,
+            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        });
     }
 });
 
