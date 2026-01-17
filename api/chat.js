@@ -119,7 +119,7 @@ export default async function handler(req, res) {
             };
             const waktuJakarta = jakartaTime.toLocaleDateString('id-ID', options);
 
-            const systemPrompt = `Kamu adalah **JJ**, asisten keuangan pribadi sekaligus Financial Advisor untuk **Kanjeng Jihan Mutia**. 
+            const systemPrompt = `Kamu adalah **BABA**, asisten keuangan pribadi sekaligus Financial Advisor untuk **Kanjeng Jihan Mutia**. 
 Selalu panggil user dengan nama "Jeje" dalam percakapan.
 
 📋 PERAN KAMU:

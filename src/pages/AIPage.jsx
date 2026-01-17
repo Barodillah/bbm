@@ -181,7 +181,7 @@ export default function AIPage() {
                     </div>
                     <div>
                         <h1 className="font-bold text-white text-lg">AI Financial Assistant</h1>
-                        <p className="text-xs text-indigo-200">Powered by MIMO AI</p>
+                        <p className="text-xs text-indigo-200">Powered by BABA AI</p>
                     </div>
                 </div>
                 <button

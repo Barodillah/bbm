@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Routes, Route, useLocation } from 'react-router-dom';
-import { Plus } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
 import { useApp } from './context/AppContext';
 import Sidebar from './components/Sidebar';
 import BottomNav from './components/BottomNav';
 import Header from './components/Header';
 import TransactionModal from './components/TransactionModal';
+import AIChatModal from './components/AIChatModal';
 import HomePage from './pages/HomePage';
 import HistoryPage from './pages/HistoryPage';
 import AnalysisPage from './pages/AnalysisPage';
@@ -15,6 +16,7 @@ import { Toaster } from 'react-hot-toast';
 
 export default function App() {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isAIOpen, setIsAIOpen] = useState(false);
   const { setIsScrolled } = useApp();
   const location = useLocation();
 
@@ -58,18 +60,20 @@ export default function App() {
         </div>
       </main>
 
-      {/* Add Transaction FAB - Right side */}
+      {/* AI FAB - Right side (Mobile only) */}
       <button
-        onClick={() => setIsModalOpen(true)}
-        className="fixed bottom-20 md:bottom-8 right-6 md:right-12 w-14 h-14 bg-indigo-600 text-white rounded-2xl shadow-xl shadow-indigo-300 flex items-center justify-center z-50 hover:scale-110 active:scale-95 transition-all"
+        onClick={() => setIsAIOpen(true)}
+        className="md:hidden fixed bottom-20 right-6 w-14 h-14 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-2xl shadow-xl shadow-purple-300 flex items-center justify-center z-50 hover:scale-110 active:scale-95 transition-all"
       >
-        <Plus size={32} />
+        <Sparkles size={24} />
       </button>
 
-      <BottomNav />
+      <BottomNav onAddClick={() => setIsModalOpen(true)} />
       <TransactionModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
+      <AIChatModal isOpen={isAIOpen} onClose={() => setIsAIOpen(false)} />
       <Toaster position="top-center" reverseOrder={false} />
     </div>
   );
 }
+
 
