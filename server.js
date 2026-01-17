@@ -6,8 +6,6 @@ import authHandler from './api/auth.js';
 import transactionsHandler from './api/transactions.js';
 import categoriesHandler from './api/categories.js';
 import chatHandler from './api/chat.js';
-import setupHandler from './api/setup.js';
-import debugDbHandler from './api/debug-db.js';
 
 dotenv.config();
 
@@ -24,21 +22,12 @@ console.log('Auth:', typeof authHandler);
 console.log('Transactions:', typeof transactionsHandler);
 console.log('Categories:', typeof categoriesHandler);
 console.log('Chat:', typeof chatHandler);
-console.log('Setup:', typeof setupHandler);
-console.log('DebugDB:', typeof debugDbHandler);
-
-// Request Adapter for Vercel functions
-// Vercel functions expect (req, res), which Express provides, 
-// but we might need to mock some Vercel-specific properties if used.
-// For now, standard Express req/res should be sufficient for the current handlers.
 
 // Routes matches api/*.js
 app.use('/api/auth', authHandler);
 app.use('/api/transactions', transactionsHandler);
 app.use('/api/categories', categoriesHandler);
 app.use('/api/chat', chatHandler);
-app.use('/api/setup', setupHandler);
-app.use('/api/debug-db', debugDbHandler);
 
 // Simple Ping (No DB) - Show Env Status
 app.get('/api/ping', (req, res) => {
