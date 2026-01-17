@@ -1,13 +1,6 @@
 
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
-import authHandler from './api/auth.js';
-import transactionsHandler from './api/transactions.js';
-import categoriesHandler from './api/categories.js';
-import chatHandler from './api/chat.js';
-
-dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -16,18 +9,62 @@ const PORT = process.env.PORT || 3001;
 app.use(cors());
 app.use(express.json());
 
-// Debug Handlers
-console.log('[Server] Checking Handlers:');
-console.log('Auth:', typeof authHandler);
-console.log('Transactions:', typeof transactionsHandler);
-console.log('Categories:', typeof categoriesHandler);
-console.log('Chat:', typeof chatHandler);
+// Debug - track import errors
+const importErrors = {};
 
-// Routes matches api/*.js
-app.use('/api/auth', authHandler);
-app.use('/api/transactions', transactionsHandler);
-app.use('/api/categories', categoriesHandler);
-app.use('/api/chat', chatHandler);
+// Lazy load handlers to catch errors
+let authHandler, transactionsHandler, categoriesHandler, chatHandler;
+
+try {
+  authHandler = (await import('./api/auth.js')).default;
+  console.log('[Server] Auth loaded successfully');
+} catch (e) {
+  console.error('[Server] Auth import error:', e);
+  importErrors.auth = e.message;
+}
+
+try {
+  transactionsHandler = (await import('./api/transactions.js')).default;
+  console.log('[Server] Transactions loaded successfully');
+} catch (e) {
+  console.error('[Server] Transactions import error:', e);
+  importErrors.transactions = e.message;
+}
+
+try {
+  categoriesHandler = (await import('./api/categories.js')).default;
+  console.log('[Server] Categories loaded successfully');
+} catch (e) {
+  console.error('[Server] Categories import error:', e);
+  importErrors.categories = e.message;
+}
+
+try {
+  chatHandler = (await import('./api/chat.js')).default;
+  console.log('[Server] Chat loaded successfully');
+} catch (e) {
+  console.error('[Server] Chat import error:', e);
+  importErrors.chat = e.message;
+}
+
+// Routes - only mount if loaded successfully
+if (authHandler) app.use('/api/auth', authHandler);
+if (transactionsHandler) app.use('/api/transactions', transactionsHandler);
+if (categoriesHandler) app.use('/api/categories', categoriesHandler);
+if (chatHandler) app.use('/api/chat', chatHandler);
+
+// Debug endpoint to see import errors
+app.get('/api/debug', (req, res) => {
+  res.json({
+    importErrors,
+    handlers: {
+      auth: !!authHandler,
+      transactions: !!transactionsHandler,
+      categories: !!categoriesHandler,
+      chat: !!chatHandler
+    }
+  });
+});
 
 // Simple Ping (No DB) - Show Env Status
 app.get('/api/ping', (req, res) => {
