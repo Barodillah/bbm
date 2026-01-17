@@ -6,7 +6,11 @@ const router = express.Router();
 router.get('/', async (req, res) => {
     let conn;
     try {
+        console.log("[Setup] Attempting to connect to DB...");
+
+        // This will now throw after 5s if unreachable, instead of hanging forever
         conn = await pool.getConnection();
+        console.log("[Setup] Connection acquired. ID:", conn.threadId);
 
         // Create settings table
         await conn.execute(`
@@ -31,10 +35,16 @@ router.get('/', async (req, res) => {
             await conn.execute("INSERT INTO settings (key_name, value) VALUES ('backup_pin', '2098')");
         }
 
-        res.json({ success: true, message: 'Database Setup Completed Successfully' });
+        res.json({ success: true, message: 'Database Setup Completed - Connection Verified' });
     } catch (error) {
-        console.error("Setup failed:", error);
-        res.status(500).json({ success: false, error: error.message });
+        console.error("[Setup] Failed:", error);
+        res.status(500).json({
+            success: false,
+            stage: 'db_connection',
+            error: error.message,
+            code: error.code,
+            help: 'Check DB_HOST, whitelist IP usually required'
+        });
     } finally {
         if (conn) conn.release();
     }

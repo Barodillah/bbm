@@ -18,7 +18,8 @@ const pool = mysql.createPool({
     database: process.env.DB_NAME,
     waitForConnections: true,
     connectionLimit: 10,
-    queueLimit: 0
+    queueLimit: 0,
+    connectTimeout: 5000 // Fail within 5s so we can catch the error
 });
 
 export default pool;
