@@ -1,6 +1,6 @@
 {
-    "name": "JJM - Jurnal Jeje Money",
-    "short_name": "JJM",
+    "name": "BBM - Budget By Me",
+    "short_name": "BBM",
     "description": "Aplikasi pencatatan keuangan pribadi yang simpel dan mudah digunakan",
     "start_url": "/",
     "display": "standalone",

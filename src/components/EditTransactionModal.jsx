@@ -1,19 +1,21 @@
 import { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Loader2 } from 'lucide-react';
+import { X, Loader2, Wallet, ChevronDown } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useApp } from '../context/AppContext';
 import { formatCurrency } from '../utils/formatters';
 import DateInput from './DateInput';
 
 export default function EditTransactionModal({ isOpen, onClose, transaction }) {
-    const { categories, catColors, updateTransaction } = useApp();
+    const { categories, catColors, updateTransaction, wallets } = useApp();
     const [display, setDisplay] = useState('0');
     const [title, setTitle] = useState('');
     const [type, setType] = useState('expense');
     const [category, setCategory] = useState('');
     const [date, setDate] = useState('');
+    const [walletId, setWalletId] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    const [showWalletDropdown, setShowWalletDropdown] = useState(false);
 
     // Filter categories based on selected type
     const filteredCategories = useMemo(() => {
@@ -28,6 +30,7 @@ export default function EditTransactionModal({ isOpen, onClose, transaction }) {
             setType(transaction.type);
             setCategory(transaction.category);
             setDate(transaction.date);
+            setWalletId(transaction.wallet_id || '');
         }
     }, [transaction, isOpen]);
 
@@ -59,6 +62,7 @@ export default function EditTransactionModal({ isOpen, onClose, transaction }) {
     };
 
     const currentTotal = calculateTotal();
+    const selectedWallet = wallets.find(w => w.id === walletId);
 
     const handleSave = async () => {
         if (currentTotal === 0 || !title || !category || isLoading) return;
@@ -69,7 +73,8 @@ export default function EditTransactionModal({ isOpen, onClose, transaction }) {
                 amount: currentTotal,
                 category,
                 type,
-                date
+                date,
+                wallet_id: walletId || null
             });
             toast.success('Transaksi berhasil diperbarui');
             onClose();
@@ -119,6 +124,80 @@ export default function EditTransactionModal({ isOpen, onClose, transaction }) {
                                 Pemasukan
                             </button>
                         </div>
+
+                        {/* Wallet Selector */}
+                        {wallets.length > 0 && (
+                            <div className="relative">
+                                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5 block ml-1">
+                                    Wallet
+                                </label>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowWalletDropdown(!showWalletDropdown)}
+                                    className="w-full px-4 py-3 bg-gray-50 rounded-xl flex items-center justify-between text-left focus:ring-2 focus:ring-indigo-500 transition-all"
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-1.5 bg-indigo-100 rounded-lg">
+                                            <Wallet size={16} className="text-indigo-600" />
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-semibold text-gray-800">
+                                                {selectedWallet?.name || 'Tanpa Wallet'}
+                                            </p>
+                                            {selectedWallet && (
+                                                <p className="text-xs text-gray-500 capitalize">{selectedWallet.type}</p>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <ChevronDown size={18} className={`text-gray-400 transition-transform ${showWalletDropdown ? 'rotate-180' : ''}`} />
+                                </button>
+
+                                {/* Dropdown */}
+                                {showWalletDropdown && (
+                                    <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-100 rounded-xl shadow-lg z-10 max-h-48 overflow-y-auto">
+                                        {/* Option for no wallet */}
+                                        <button
+                                            onClick={() => {
+                                                setWalletId('');
+                                                setShowWalletDropdown(false);
+                                            }}
+                                            className={`w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-50 transition-colors ${!walletId ? 'bg-indigo-50' : ''}`}
+                                        >
+                                            <div className="p-1.5 bg-gray-100 rounded-lg">
+                                                <Wallet size={16} className="text-gray-400" />
+                                            </div>
+                                            <div className="text-left">
+                                                <p className="text-sm font-medium text-gray-600">Tanpa Wallet</p>
+                                                <p className="text-xs text-gray-400">Tidak terhubung ke wallet manapun</p>
+                                            </div>
+                                        </button>
+
+                                        {wallets.map((wallet) => (
+                                            <button
+                                                key={wallet.id}
+                                                onClick={() => {
+                                                    setWalletId(wallet.id);
+                                                    setShowWalletDropdown(false);
+                                                }}
+                                                className={`w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-50 transition-colors border-t border-gray-50 ${walletId === wallet.id ? 'bg-indigo-50' : ''}`}
+                                            >
+                                                <div className="p-1.5 bg-indigo-100 rounded-lg">
+                                                    <Wallet size={16} className="text-indigo-600" />
+                                                </div>
+                                                <div className="text-left flex-1">
+                                                    <p className="text-sm font-semibold text-gray-800">{wallet.name}</p>
+                                                    <p className="text-xs text-gray-500 capitalize">{wallet.type}</p>
+                                                </div>
+                                                <span className="text-xs font-medium text-gray-500">
+                                                    {formatCurrency(wallet.balance)}
+                                                </span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
                         <input
                             type="text"
                             placeholder="Catatan transaksi..."

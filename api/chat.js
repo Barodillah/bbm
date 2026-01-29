@@ -1,6 +1,6 @@
 import getPool from './db.js';
 
-const AI_MODEL = 'xiaomi/mimo-v2-flash:free';
+const AI_MODEL = 'google/gemini-2.5-flash-lite';
 
 async function callOpenRouter(systemPrompt, userMessage) {
     const apiKey = process.env.OPENROUTER_API_KEY;
@@ -12,7 +12,7 @@ async function callOpenRouter(systemPrompt, userMessage) {
                 'Authorization': `Bearer ${apiKey}`,
                 'Content-Type': 'application/json',
                 'HTTP-Referer': process.env.API_URL || 'http://localhost:3001',
-                'X-Title': 'JJM - Jurnal Jeje Money'
+                'X-Title': 'BBM - Budget By Me'
             },
             body: JSON.stringify({
                 model: AI_MODEL,
@@ -169,6 +169,80 @@ async function getMarketData() {
     return marketData;
 }
 
+// ===== FUNGSI UNTUK MENGAMBIL KNOWLEDGE BASE =====
+async function getKnowledgeBase(pool) {
+    try {
+        // Check if table exists first
+        const [tables] = await pool.execute("SHOW TABLES LIKE 'ai_knowledge'");
+        if (tables.length === 0) {
+            return []; // Table doesn't exist, return empty array
+        }
+        // Use SELECT * for flexibility with different column structures
+        const [rows] = await pool.execute('SELECT * FROM ai_knowledge ORDER BY created_at DESC');
+        return rows;
+    } catch (err) {
+        console.error('Error getting knowledge base:', err.message);
+        return [];
+    }
+}
+
+// ===== FUNGSI UNTUK MENGAMBIL DATA WALLET =====
+async function getWalletContext(pool) {
+    try {
+        const [wallets] = await pool.execute(`
+            SELECT id, name, type, balance, initial_balance
+            FROM wallets 
+            WHERE is_active = 1 
+            ORDER BY created_at ASC
+        `);
+
+        // Hitung total saldo semua wallet
+        const totalBalance = wallets.reduce((sum, w) => sum + parseFloat(w.balance || 0), 0);
+
+        // Group wallets by type
+        const walletsByType = {
+            bank: wallets.filter(w => w.type === 'bank'),
+            ewallet: wallets.filter(w => w.type === 'ewallet'),
+            cash: wallets.filter(w => w.type === 'cash'),
+            credit: wallets.filter(w => w.type === 'credit'),
+            investment: wallets.filter(w => w.type === 'investment')
+        };
+
+        // Top up dan transfer terakhir (from wallet transactions)
+        const [recentWalletTx] = await pool.execute(`
+            SELECT t.title, t.amount, t.type, t.date, w.name as wallet_name
+            FROM transactions t
+            JOIN wallets w ON t.wallet_id = w.id
+            WHERE t.category IN ('Top Up', 'Transfer')
+            ORDER BY t.date DESC, t.created_at DESC
+            LIMIT 5
+        `);
+
+        return {
+            wallets,
+            totalBalance,
+            walletsByType,
+            recentWalletTransactions: recentWalletTx
+        };
+    } catch (err) {
+        console.error('Error getting wallet context:', err);
+        return null;
+    }
+}
+
+// ===== FUNGSI UNTUK MENGAMBIL DATA KATEGORI =====
+async function getCategoriesContext(pool) {
+    try {
+        const [categories] = await pool.execute(`
+            SELECT name, type, color FROM categories ORDER BY name
+        `);
+        return categories;
+    } catch (err) {
+        console.error('Error getting categories:', err);
+        return [];
+    }
+}
+
 async function getTransactionContext(pool) {
     try {
         // ===== DATA BULAN INI =====
@@ -256,9 +330,11 @@ async function getTransactionContext(pool) {
 
         // ===== 10 TRANSAKSI TERAKHIR =====
         const [recentTransactions] = await pool.execute(`
-            SELECT title, amount, type, category, DATE_FORMAT(date, '%d %b %Y') as tanggal
-            FROM transactions
-            ORDER BY date DESC, created_at DESC
+            SELECT t.title, t.amount, t.type, t.category, DATE_FORMAT(t.date, '%d %b %Y') as tanggal,
+                   w.name as wallet_name
+            FROM transactions t
+            LEFT JOIN wallets w ON t.wallet_id = w.id
+            ORDER BY t.date DESC, t.created_at DESC
             LIMIT 10
         `);
 
@@ -307,6 +383,20 @@ async function getTransactionContext(pool) {
             FROM transactions
         `);
 
+        // ===== DATA 3 BULAN TERAKHIR (TREND) =====
+        const [monthlyTrend] = await pool.execute(`
+            SELECT 
+                DATE_FORMAT(date, '%M %Y') as bulan,
+                SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END) as pemasukan,
+                SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END) as pengeluaran,
+                COUNT(*) as jumlah_transaksi
+            FROM transactions
+            WHERE date >= DATE_SUB(CURDATE(), INTERVAL 3 MONTH)
+            GROUP BY YEAR(date), MONTH(date)
+            ORDER BY YEAR(date) DESC, MONTH(date) DESC
+            LIMIT 3
+        `);
+
         return {
             thisMonth: summaryThisMonth[0],
             lastMonth: summaryLastMonth[0],
@@ -328,7 +418,8 @@ async function getTransactionContext(pool) {
                 expense: biggestExpense[0],
                 income: biggestIncome[0]
             },
-            allTime: allTimeSummary[0]
+            allTime: allTimeSummary[0],
+            monthlyTrend
         };
     } catch (err) {
         console.error('Error getting transaction context:', err);
@@ -369,8 +460,14 @@ export default async function handler(req, res) {
                 ['user', message]
             );
 
-            const context = await getTransactionContext(pool);
-            const marketData = await getMarketData();
+            // Ambil semua data yang diperlukan
+            const [context, walletContext, knowledgeBase, categories, marketData] = await Promise.all([
+                getTransactionContext(pool),
+                getWalletContext(pool),
+                getKnowledgeBase(pool),
+                getCategoriesContext(pool),
+                getMarketData()
+            ]);
 
             // Dapatkan waktu Jakarta (WIB - UTC+7)
             const now = new Date();
@@ -387,8 +484,73 @@ export default async function handler(req, res) {
             };
             const waktuJakarta = jakartaTime.toLocaleDateString('id-ID', options);
 
+            // Format knowledge base untuk prompt
+            let knowledgeSection = '';
+            if (knowledgeBase && knowledgeBase.length > 0) {
+                knowledgeSection = `
+══════════════════════════════════════
+📚 ACUAN FINANSIAL (Asas atau Aturan yang dianut Barod)
+══════════════════════════════════════
+${knowledgeBase.map(k => `
+📌 ${k.title || 'Acuan'}${k.category ? ` [${k.category}]` : ''}
+${k.content}
+`).join('\n──────────────────────────────────────\n')}
+══════════════════════════════════════`;
+            }
+
+            // Format wallet section untuk prompt
+            let walletSection = '';
+            if (walletContext && walletContext.wallets.length > 0) {
+                walletSection = `
+══════════════════════════════════════
+💰 DATA WALLET BAROD
+══════════════════════════════════════
+💳 TOTAL SALDO SEMUA WALLET: Rp ${walletContext.totalBalance.toLocaleString('id-ID')}
+📊 Jumlah Wallet Aktif: ${walletContext.wallets.length}
+
+${walletContext.walletsByType.bank?.length > 0 ? `
+🏦 REKENING BANK:
+${walletContext.walletsByType.bank.map(w => `   • ${w.name}: Rp ${parseFloat(w.balance).toLocaleString('id-ID')}`).join('\n')}
+` : ''}
+${walletContext.walletsByType.ewallet?.length > 0 ? `
+📱 E-WALLET:
+${walletContext.walletsByType.ewallet.map(w => `   • ${w.name}: Rp ${parseFloat(w.balance).toLocaleString('id-ID')}`).join('\n')}
+` : ''}
+${walletContext.walletsByType.cash?.length > 0 ? `
+💵 UANG TUNAI:
+${walletContext.walletsByType.cash.map(w => `   • ${w.name}: Rp ${parseFloat(w.balance).toLocaleString('id-ID')}`).join('\n')}
+` : ''}
+${walletContext.walletsByType.credit?.length > 0 ? `
+💳 KARTU KREDIT:
+${walletContext.walletsByType.credit.map(w => `   • ${w.name}: Rp ${parseFloat(w.balance).toLocaleString('id-ID')}`).join('\n')}
+` : ''}
+${walletContext.walletsByType.investment?.length > 0 ? `
+📈 INVESTASI:
+${walletContext.walletsByType.investment.map(w => `   • ${w.name}: Rp ${parseFloat(w.balance).toLocaleString('id-ID')}`).join('\n')}
+` : ''}
+${walletContext.recentWalletTransactions?.length > 0 ? `
+🔄 TRANSAKSI WALLET TERAKHIR (Top Up/Transfer):
+${walletContext.recentWalletTransactions.map(t => `   • ${t.title} - ${t.wallet_name}: Rp ${parseFloat(t.amount).toLocaleString('id-ID')} (${t.type === 'income' ? '📈' : '📉'})`).join('\n')}
+` : ''}
+══════════════════════════════════════`;
+            }
+
+            // Format categories section
+            let categoriesSection = '';
+            if (categories && categories.length > 0) {
+                const expenseCategories = categories.filter(c => c.type === 'expense');
+                const incomeCategories = categories.filter(c => c.type === 'income');
+                categoriesSection = `
+══════════════════════════════════════
+🏷️ KATEGORI YANG TERSEDIA
+══════════════════════════════════════
+📉 Kategori Pengeluaran: ${expenseCategories.map(c => c.name).join(', ')}
+📈 Kategori Pemasukan: ${incomeCategories.map(c => c.name).join(', ')}
+══════════════════════════════════════`;
+            }
+
             const systemPrompt = `Kamu adalah **BABA**, asisten keuangan pribadi sekaligus Financial Advisor untuk **Kanjeng Jihan Mutia**. 
-Selalu panggil user dengan nama "Jeje" dalam percakapan.
+Selalu panggil user dengan nama "Barod" dalam percakapan.
 
 📋 PERAN KAMU:
 1. **Financial Advisor Profesional** - Kamu adalah ahli keuangan yang berpengalaman. Bisa menjawab pertanyaan seputar:
@@ -400,21 +562,27 @@ Selalu panggil user dengan nama "Jeje" dalam percakapan.
    - Pajak & perencanaan pensiun
    - Tips hemat & cara mengelola uang
    
-2. **Personal Money Manager** - Menganalisis data keuangan pribadi Jeje dan memberikan insight
+2. **Personal Money Manager** - Menganalisis data keuangan pribadi Barod dan memberikan insight
+3. **Acuan Finansial** - Kamu memberikan Advice berdasarkan Acuan Finansial yang telah diatur
 
 💡 GAYA KOMUNIKASI:
 - Santai, hangat, dan suportif seperti teman dekat 💕
 - Gunakan emoji untuk membuat percakapan lebih hidup
 - Jelaskan konsep keuangan dengan bahasa sederhana yang mudah dipahami
 - Berikan contoh konkret dan actionable tips
-- Jika Jeje tanya hal di luar keuangan, tetap ramah dan arahkan kembali ke topik finansial
+- Jika Barod tanya hal di luar keuangan, tetap ramah dan arahkan kembali ke topik finansial
+- Gunakan data dari Knowledge Base jika relevan dengan pertanyaan Barod
 
 🕐 WAKTU SEKARANG (Jakarta/WIB):
 ${waktuJakarta}
 
+${knowledgeSection}
+
+${walletSection}
+
 ${context ? `
 ══════════════════════════════════════
-📊 DATA KEUANGAN LENGKAP JEJE
+📊 DATA KEUANGAN LENGKAP BAROD
 ══════════════════════════════════════
 
 📅 HARI INI:
@@ -451,12 +619,17 @@ ${context.week.dailyBreakdown.map(d => `   • ${d.hari}: +Rp ${(d.pemasukan || 
 - Perubahan Pemasukan: ${context.lastMonth?.total_income ? ((((context.thisMonth?.total_income || 0) - context.lastMonth.total_income) / context.lastMonth.total_income) * 100).toFixed(1) : 0}%
 - Perubahan Pengeluaran: ${context.lastMonth?.total_expense ? ((((context.thisMonth?.total_expense || 0) - context.lastMonth.total_expense) / context.lastMonth.total_expense) * 100).toFixed(1) : 0}%
 
+${context.monthlyTrend?.length > 0 ? `
+📊 TREND 3 BULAN TERAKHIR:
+${context.monthlyTrend.map(m => `   • ${m.bulan}: +Rp ${(m.pemasukan || 0).toLocaleString('id-ID')} / -Rp ${(m.pengeluaran || 0).toLocaleString('id-ID')} (${m.jumlah_transaksi} transaksi)`).join('\n')}
+` : ''}
+
 ${context.categories?.topExpense?.length > 0 ? `
 🏷️ TOP 5 KATEGORI PENGELUARAN BULAN INI:
 ${context.categories.topExpense.map((c, i) => `   ${i + 1}. ${c.category}: Rp ${c.total.toLocaleString('id-ID')} (${c.count}x)`).join('\n')}
 ` : ''}
 ${context.categories?.topIncome?.length > 0 ? `
-� TOP 5 SUMBER PEMASUKAN BULAN INI:
+💰 TOP 5 SUMBER PEMASUKAN BULAN INI:
 ${context.categories.topIncome.map((c, i) => `   ${i + 1}. ${c.category}: Rp ${c.total.toLocaleString('id-ID')} (${c.count}x)`).join('\n')}
 ` : ''}
 ${context.biggest?.expense ? `
@@ -478,10 +651,12 @@ ${context.allTime?.first_transaction_date ? `- Mulai Tercatat Sejak: ${new Date(
 
 ──────────────────────────────────────
 📝 10 TRANSAKSI TERAKHIR:
-${context.recentTransactions?.map(t => `• ${t.tanggal} - ${t.title}: Rp ${t.amount.toLocaleString('id-ID')} (${t.type === 'income' ? '📈' : '📉'} ${t.category})`).join('\n') || 'Belum ada transaksi'}
+${context.recentTransactions?.map(t => `• ${t.tanggal} - ${t.title}: Rp ${t.amount.toLocaleString('id-ID')} (${t.type === 'income' ? '📈' : '📉'} ${t.category})${t.wallet_name ? ` [${t.wallet_name}]` : ''}`).join('\n') || 'Belum ada transaksi'}
 
 ══════════════════════════════════════
 ` : 'Belum ada data keuangan.'}
+
+${categoriesSection}
 
 ══════════════════════════════════════
 📈 DATA PASAR HARI INI (REAL-TIME)
@@ -514,7 +689,7 @@ ${marketData.ihsg ? `
 
             if (aiResponse.error) {
                 return res.status(200).json({
-                    response: 'Maaf Jeje, ada kendala pada sistem. Coba lagi ya! 🙏'
+                    response: 'Maaf Barod, ada kendala pada sistem. Coba lagi ya! 🙏'
                 });
             }
 

@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { formatCurrency, formatDate } from '../utils/formatters';
 import TransactionItem from './TransactionItem';
 
-export default function TransactionList({ transactions, onDelete, onEdit }) {
+export default function TransactionList({ transactions, onDelete, onEdit, showDailySummary = true, customIconClass, customIconBgClass }) {
     const groupedTransactions = useMemo(() => {
         const groups = {};
 
@@ -46,18 +46,20 @@ export default function TransactionList({ transactions, onDelete, onEdit }) {
                                     {formatDate(group.date)}
                                 </p>
                             </div>
-                            <div className="flex items-center gap-4 text-xs font-bold">
-                                <div className="text-right">
-                                    <p className="text-emerald-500">+{formatCurrency(group.totalIncome).replace('Rp', '').trim()}</p>
-                                    <p className="text-rose-500">-{formatCurrency(group.totalExpense).replace('Rp', '').trim()}</p>
+                            {showDailySummary && (
+                                <div className="flex items-center gap-4 text-xs font-bold">
+                                    <div className="text-right">
+                                        <p className="text-emerald-500">+{formatCurrency(group.totalIncome).replace('Rp', '').trim()}</p>
+                                        <p className="text-rose-500">-{formatCurrency(group.totalExpense).replace('Rp', '').trim()}</p>
+                                    </div>
+                                    <div className="text-right border-l pl-4 border-gray-200">
+                                        <p className="text-[10px] text-gray-400 uppercase tracking-wider mb-0.5">Balance</p>
+                                        <p className={`text-sm ${balance >= 0 ? 'text-indigo-600' : 'text-rose-600'}`}>
+                                            {formatCurrency(balance)}
+                                        </p>
+                                    </div>
                                 </div>
-                                <div className="text-right border-l pl-4 border-gray-200">
-                                    <p className="text-[10px] text-gray-400 uppercase tracking-wider mb-0.5">Balance</p>
-                                    <p className={`text-sm ${balance >= 0 ? 'text-indigo-600' : 'text-rose-600'}`}>
-                                        {formatCurrency(balance)}
-                                    </p>
-                                </div>
-                            </div>
+                            )}
                         </div>
 
                         {/* Transactions List */}
@@ -68,6 +70,8 @@ export default function TransactionList({ transactions, onDelete, onEdit }) {
                                     tx={tx}
                                     onDelete={() => onDelete(tx.id)}
                                     onEdit={() => onEdit(tx)}
+                                    customIconClass={customIconClass}
+                                    customIconBgClass={customIconBgClass}
                                 />
                             ))}
                         </div>

@@ -50,10 +50,10 @@ export default function Header() {
                         onClick={() => setIsChangePinOpen(true)}
                         className={`flex items-center gap-3 transition-all duration-300 cursor-pointer hover:opacity-80 ${isSearchOpen ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100'}`}
                     >
-                        <div className="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center text-white font-black shadow-lg shadow-indigo-200">JJ</div>
+                        <div className="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center text-white font-black shadow-lg shadow-indigo-200">B</div>
                         <div>
                             <p className="text-[10px] text-gray-400 font-bold uppercase tracking-tighter leading-none">Hello,</p>
-                            <p className="text-sm font-black text-gray-800">Jeje</p>
+                            <p className="text-sm font-black text-gray-800">BAROD</p>
                         </div>
                     </div>
 

@@ -4,9 +4,17 @@ import { formatCurrency, formatDate } from '../utils/formatters';
 
 import { useApp } from '../context/AppContext';
 
-export default function TransactionItem({ tx, onDelete, onEdit }) {
+export default function TransactionItem({ tx, onDelete, onEdit, customIconClass, customIconBgClass }) {
     const { catColors } = useApp();
     const [isSwiped, setIsSwiped] = useState(false);
+
+    // Default colors based on type
+    const defaultBg = tx.type === 'income' ? 'bg-emerald-50' : 'bg-rose-50';
+    const defaultText = tx.type === 'income' ? 'text-emerald-600' : 'text-rose-600';
+
+    // Use custom classes if provided, otherwise defaults
+    const bgClass = customIconBgClass || defaultBg;
+    const textClass = customIconClass || defaultText;
 
     return (
         <div className="relative overflow-hidden rounded-2xl shadow-sm border border-gray-50">
@@ -39,8 +47,7 @@ export default function TransactionItem({ tx, onDelete, onEdit }) {
                 className={`relative bg-white p-4 flex items-center gap-4 transition-transform duration-300 cursor-pointer ${isSwiped ? '-translate-x-40' : 'translate-x-0'
                     }`}
             >
-                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${tx.type === 'income' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'
-                    }`}>
+                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${bgClass} ${textClass}`}>
                     {tx.type === 'income' ? <ArrowUpRight size={24} /> : <ArrowDownLeft size={24} />}
                 </div>
                 <div className="flex-1">

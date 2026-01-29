@@ -1,9 +1,12 @@
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import authHandler from './api/auth.js';
 import transactionsHandler from './api/transactions.js';
 import categoriesHandler from './api/categories.js';
+import knowledgeHandler from './api/knowledge.js';
 import chatHandler from './api/chat.js';
+import walletsHandler from './api/wallets.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -41,7 +44,9 @@ app.get('/api/health', async (req, res) => {
 app.use('/api/auth', authHandler);
 app.use('/api/transactions', transactionsHandler);
 app.use('/api/categories', categoriesHandler);
+app.use('/api/knowledge', knowledgeHandler);
 app.use('/api/chat', chatHandler);
+app.use('/api/wallets', walletsHandler);
 
 // Global Error Handler
 app.use((err, req, res, next) => {

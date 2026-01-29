@@ -9,6 +9,7 @@ import TransactionModal from './components/TransactionModal';
 import AIChatModal from './components/AIChatModal';
 import HomePage from './pages/HomePage';
 import HistoryPage from './pages/HistoryPage';
+import WalletPage from './pages/WalletPage';
 import AnalysisPage from './pages/AnalysisPage';
 import CategorySettingsPage from './pages/CategorySettingsPage';
 import AIPage from './pages/AIPage';
@@ -53,6 +54,7 @@ export default function App() {
             <Routes>
               <Route path="/" element={<HomePage />} />
               <Route path="/history" element={<HistoryPage />} />
+              <Route path="/wallet" element={<WalletPage />} />
               <Route path="/analysis" element={<AnalysisPage />} />
               <Route path="/categories" element={<CategorySettingsPage />} />
             </Routes>

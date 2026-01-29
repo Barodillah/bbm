@@ -9,7 +9,7 @@ export default defineConfig(({ mode }) => {
     server: {
       proxy: {
         '/api': {
-          target: env.API_URL || 'http://localhost:3001',
+          target: env.API_URL || 'http://localhost:3002',
           changeOrigin: true,
         }
       }

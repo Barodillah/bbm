@@ -54,7 +54,8 @@ export const transactionsApi = {
         const data = await res.json();
         return data.map(tx => ({
             ...tx,
-            amount: Number(tx.amount)
+            amount: Number(tx.amount),
+            wallet_id: tx.wallet_id ? Number(tx.wallet_id) : null
         }));
     },
 
@@ -129,6 +130,91 @@ export const categoriesApi = {
             method: 'DELETE'
         });
         if (!res.ok) throw new Error('Failed to delete category');
+        return res.json();
+    }
+};
+
+/**
+ * Knowledge API
+ */
+export const knowledgeApi = {
+    getAll: async () => {
+        const res = await fetch(getEndpoint('knowledge'));
+        if (!res.ok) throw new Error('Failed to fetch knowledge');
+        return res.json();
+    },
+
+    create: async ({ title, content, category }) => {
+        const res = await fetch(getEndpoint('knowledge'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ title, content, category })
+        });
+        if (!res.ok) throw new Error('Failed to create knowledge');
+        return res.json();
+    },
+
+    update: async (id, { title, content, category }) => {
+        const res = await fetch(`${getEndpoint('knowledge')}?id=${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ title, content, category })
+        });
+        if (!res.ok) throw new Error('Failed to update knowledge');
+        return res.json();
+    },
+
+    delete: async (id) => {
+        const res = await fetch(`${getEndpoint('knowledge')}?id=${id}`, {
+            method: 'DELETE'
+        });
+        if (!res.ok) throw new Error('Failed to delete knowledge');
+        return res.json();
+    }
+};
+
+/**
+ * Wallets API
+ */
+export const walletsApi = {
+    getAll: async () => {
+        const res = await fetch(getEndpoint('wallets'));
+        if (!res.ok) throw new Error('Failed to fetch wallets');
+        const data = await res.json();
+        return data.map(wallet => ({
+            ...wallet,
+            balance: Number(wallet.balance),
+            initial_balance: Number(wallet.initial_balance)
+        }));
+    },
+
+    create: async (wallet) => {
+        const res = await fetch(getEndpoint('wallets'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(wallet)
+        });
+        if (!res.ok) throw new Error('Failed to create wallet');
+        const data = await res.json();
+        return { ...data, balance: Number(data.balance), initial_balance: Number(data.initial_balance) };
+    },
+
+    update: async (id, wallet) => {
+        const res = await fetch(`${getEndpoint('wallets')}?id=${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(wallet)
+        });
+        if (!res.ok) throw new Error('Failed to update wallet');
+        const data = await res.json();
+        return { ...data, balance: Number(data.balance), initial_balance: Number(data.initial_balance) };
+    },
+
+    delete: async (id) => {
+        const res = await fetch(`${getEndpoint('wallets')}?id=${id}`, {
+            method: 'DELETE'
+        });
+        if (!res.ok) throw new Error('Failed to delete wallet');
         return res.json();
     }
 };
