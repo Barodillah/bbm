@@ -719,7 +719,7 @@ export default function AnalysisPage() {
                             </div>
                             <span className="text-xs font-bold text-emerald-700">Pemasukan</span>
                         </div>
-                        <p className="text-lg font-black text-gray-800">{formatCurrency(averageTotals.income)}</p>
+                        <p className="text-lg font-black text-gray-800">{formatCurrency(Math.round(averageTotals.income))}</p>
                         <p className="text-[10px] text-gray-400 font-medium">/ bulan</p>
                     </div>
                     <div className="bg-rose-50 p-4 rounded-2xl border border-rose-100">
@@ -729,7 +729,7 @@ export default function AnalysisPage() {
                             </div>
                             <span className="text-xs font-bold text-rose-700">Pengeluaran</span>
                         </div>
-                        <p className="text-lg font-black text-gray-800">{formatCurrency(averageTotals.expense)}</p>
+                        <p className="text-lg font-black text-gray-800">{formatCurrency(Math.round(averageTotals.expense))}</p>
                         <p className="text-[10px] text-gray-400 font-medium">/ bulan</p>
                     </div>
                 </div>
@@ -759,7 +759,7 @@ export default function AnalysisPage() {
                                 <div className="text-right">
                                     <p className="text-[10px] text-gray-400 uppercase tracking-wider font-bold mb-0.5">Rata-rata</p>
                                     <p className={`font-bold text-gray-800 ${activeTab === 'expense' ? 'text-rose-600' : 'text-emerald-600'}`}>
-                                        {formatCurrency(item.average)}
+                                        {formatCurrency(Math.round(item.average))}
                                     </p>
                                 </div>
 
@@ -770,11 +770,11 @@ export default function AnalysisPage() {
                                 <div className="text-right min-w-[80px]">
                                     <p className="text-[10px] text-gray-400 uppercase tracking-wider font-bold mb-0.5">Bulan Ini</p>
                                     <p className="font-bold text-gray-800">
-                                        {formatCurrency(item.currentAmount)}
+                                        {formatCurrency(Math.round(item.currentAmount))}
                                     </p>
                                     <div className={`text-[10px] font-bold flex items-center justify-end gap-0.5 ${item.percentDiff > 0
-                                            ? (activeTab === 'expense' ? 'text-rose-500' : 'text-emerald-500')
-                                            : (activeTab === 'expense' ? 'text-emerald-500' : 'text-rose-500')
+                                        ? (activeTab === 'expense' ? 'text-rose-500' : 'text-emerald-500')
+                                        : (activeTab === 'expense' ? 'text-emerald-500' : 'text-rose-500')
                                         }`}>
                                         {item.percentDiff > 0 ? <TrendingUp size={10} /> : <TrendingUp size={10} className="rotate-180" />}
                                         {Math.abs(item.percentDiff).toFixed(0)}%
