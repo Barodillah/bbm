@@ -245,55 +245,110 @@ async function getCategoriesContext(pool) {
 
 async function getTransactionContext(pool) {
     try {
-        // ===== DATA BULAN INI =====
-        const [summaryThisMonth] = await pool.execute(`
-            SELECT 
-                SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END) as total_income,
-                SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END) as total_expense,
-                COUNT(*) as total_transactions
-            FROM transactions
-            WHERE MONTH(date) = MONTH(CURDATE()) AND YEAR(date) = YEAR(CURDATE())
-        `);
+        const baseFilter = "category != 'Transfer'";
 
-        // ===== DATA BULAN LALU (untuk perbandingan) =====
-        const [summaryLastMonth] = await pool.execute(`
-            SELECT 
-                SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END) as total_income,
-                SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END) as total_expense,
-                COUNT(*) as total_transactions
-            FROM transactions
-            WHERE MONTH(date) = MONTH(DATE_SUB(CURDATE(), INTERVAL 1 MONTH)) 
-            AND YEAR(date) = YEAR(DATE_SUB(CURDATE(), INTERVAL 1 MONTH))
-        `);
+        // ===== 1. DATA SKALAR (Hari Ini, Minggu Ini, Bulan Ini, Bulan Lalu) =====
+        // Helper to run query with base filter
+        const getSummary = async (dateCondition) => {
+            const [rows] = await pool.execute(`
+                SELECT 
+                    SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END) as total_income,
+                    SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END) as total_expense,
+                    COUNT(*) as total_transactions
+                FROM transactions
+                WHERE ${baseFilter} AND ${dateCondition}
+            `);
+            return rows[0];
+        };
 
-        // ===== DATA HARI INI =====
-        const [todaySummary] = await pool.execute(`
-            SELECT 
-                SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END) as total_income,
-                SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END) as total_expense,
-                COUNT(*) as total_transactions
-            FROM transactions
-            WHERE DATE(date) = CURDATE()
-        `);
+        const todaySummary = await getSummary("DATE(date) = CURDATE()");
+        const weekSummary = await getSummary("date >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)");
+        const thisMonthSummary = await getSummary("MONTH(date) = MONTH(CURDATE()) AND YEAR(date) = YEAR(CURDATE())");
+        const lastMonthSummary = await getSummary("MONTH(date) = MONTH(DATE_SUB(CURDATE(), INTERVAL 1 MONTH)) AND YEAR(date) = YEAR(DATE_SUB(CURDATE(), INTERVAL 1 MONTH))");
+        const allTimeSummary = await getSummary("1=1");
 
+        // First transaction date for all-time context
+        const [firstTx] = await pool.execute(`SELECT MIN(date) as dt FROM transactions WHERE ${baseFilter}`);
+        allTimeSummary.first_transaction_date = firstTx[0]?.dt;
+
+        // ===== 2. TRANSAKSI DETAIL =====
+
+        // Hari Ini
         const [todayTransactions] = await pool.execute(`
             SELECT title, amount, type, category, TIME_FORMAT(created_at, '%H:%i') as jam
             FROM transactions
-            WHERE DATE(date) = CURDATE()
+            WHERE ${baseFilter} AND DATE(date) = CURDATE()
             ORDER BY created_at DESC
         `);
 
-        // ===== DATA 7 HARI TERAKHIR =====
-        const [weekSummary] = await pool.execute(`
-            SELECT 
-                SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END) as total_income,
-                SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END) as total_expense,
-                COUNT(*) as total_transactions
-            FROM transactions
-            WHERE date >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)
+        // 30 Hari Terakhir (NEW)
+        const [last30DaysTransactions] = await pool.execute(`
+            SELECT t.title, t.amount, t.type, t.category, DATE_FORMAT(t.date, '%d %b %Y') as tanggal, w.name as wallet_name
+            FROM transactions t
+            LEFT JOIN wallets w ON t.wallet_id = w.id
+            WHERE t.category != 'Transfer' AND t.date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+            ORDER BY t.date DESC, t.created_at DESC
         `);
 
-        // Data per hari dalam 7 hari terakhir
+        // ===== 3. RATA-RATA BULANAN (ANALYSIS PAGE LOGIC) =====
+
+        // A. Hitung jumlah bulan unik
+        const [uniqueMonthsRes] = await pool.execute(`
+            SELECT COUNT(DISTINCT DATE_FORMAT(date, '%Y-%m')) as count 
+            FROM transactions 
+            WHERE ${baseFilter}
+        `);
+        const totalMonths = uniqueMonthsRes[0].count || 1;
+
+        // B. Total per kategori (All Time)
+        const [categoryTotals] = await pool.execute(`
+            SELECT category, type, SUM(amount) as total_amount
+            FROM transactions
+            WHERE ${baseFilter}
+            GROUP BY category, type
+        `);
+
+        // C. Total per kategori (Bulan Ini) - untuk perbandingan
+        const [currentMonthTotals] = await pool.execute(`
+            SELECT category, SUM(amount) as current_amount
+            FROM transactions
+            WHERE ${baseFilter} AND MONTH(date) = MONTH(CURDATE()) AND YEAR(date) = YEAR(CURDATE())
+            GROUP BY category
+        `);
+
+        // Map current month data for easy lookup
+        const currentMonthMap = currentMonthTotals.reduce((acc, curr) => {
+            acc[curr.category] = curr.current_amount;
+            return acc;
+        }, {});
+
+        // D. Build Average Analysis Data
+        const averageAnalysis = categoryTotals.map(cat => {
+            const average = cat.total_amount / totalMonths;
+            const currentAmount = currentMonthMap[cat.category] || 0;
+            const percentDiff = average > 0 ? ((currentAmount - average) / average) * 100 : 0;
+
+            return {
+                category: cat.category,
+                type: cat.type,
+                average: average,
+                current: currentAmount,
+                percentDiff: percentDiff
+            };
+        });
+
+        // Split into income and expense analysis
+        const expenseAnalysis = averageAnalysis.filter(a => a.type === 'expense').sort((a, b) => b.average - a.average);
+        const incomeAnalysis = averageAnalysis.filter(a => a.type === 'income').sort((a, b) => b.average - a.average);
+
+        // Calculate Total Averages
+        const totalAverageExpense = expenseAnalysis.reduce((sum, item) => sum + item.average, 0);
+        const totalAverageIncome = incomeAnalysis.reduce((sum, item) => sum + item.average, 0);
+
+
+        // ===== 4. BREAKDOWN & TRENDS =====
+
+        // Data Breakdown 7 Hari
         const [dailyBreakdown] = await pool.execute(`
             SELECT 
                 DATE_FORMAT(date, '%a %d %b') as hari,
@@ -301,89 +356,12 @@ async function getTransactionContext(pool) {
                 SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END) as pengeluaran,
                 COUNT(*) as jumlah_transaksi
             FROM transactions
-            WHERE date >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)
+            WHERE ${baseFilter} AND date >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)
             GROUP BY date
             ORDER BY date DESC
         `);
 
-        // ===== KATEGORI PENGELUARAN TERBESAR BULAN INI =====
-        const [topExpenseCategories] = await pool.execute(`
-            SELECT category, SUM(amount) as total, COUNT(*) as count
-            FROM transactions
-            WHERE type = 'expense' 
-            AND MONTH(date) = MONTH(CURDATE()) AND YEAR(date) = YEAR(CURDATE())
-            GROUP BY category
-            ORDER BY total DESC
-            LIMIT 5
-        `);
-
-        // ===== KATEGORI PEMASUKAN TERBESAR BULAN INI =====
-        const [topIncomeCategories] = await pool.execute(`
-            SELECT category, SUM(amount) as total, COUNT(*) as count
-            FROM transactions
-            WHERE type = 'income' 
-            AND MONTH(date) = MONTH(CURDATE()) AND YEAR(date) = YEAR(CURDATE())
-            GROUP BY category
-            ORDER BY total DESC
-            LIMIT 5
-        `);
-
-        // ===== 10 TRANSAKSI TERAKHIR =====
-        const [recentTransactions] = await pool.execute(`
-            SELECT t.title, t.amount, t.type, t.category, DATE_FORMAT(t.date, '%d %b %Y') as tanggal,
-                   w.name as wallet_name
-            FROM transactions t
-            LEFT JOIN wallets w ON t.wallet_id = w.id
-            ORDER BY t.date DESC, t.created_at DESC
-            LIMIT 10
-        `);
-
-        // ===== RATA-RATA HARIAN BULAN INI =====
-        const [dailyAverage] = await pool.execute(`
-            SELECT 
-                AVG(daily_expense) as avg_expense,
-                AVG(daily_income) as avg_income
-            FROM (
-                SELECT 
-                    date,
-                    SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END) as daily_expense,
-                    SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END) as daily_income
-                FROM transactions
-                WHERE MONTH(date) = MONTH(CURDATE()) AND YEAR(date) = YEAR(CURDATE())
-                GROUP BY date
-            ) as daily_data
-        `);
-
-        // ===== TRANSAKSI TERBESAR BULAN INI =====
-        const [biggestExpense] = await pool.execute(`
-            SELECT title, amount, category, DATE_FORMAT(date, '%d %b') as tanggal
-            FROM transactions
-            WHERE type = 'expense' 
-            AND MONTH(date) = MONTH(CURDATE()) AND YEAR(date) = YEAR(CURDATE())
-            ORDER BY amount DESC
-            LIMIT 1
-        `);
-
-        const [biggestIncome] = await pool.execute(`
-            SELECT title, amount, category, DATE_FORMAT(date, '%d %b') as tanggal
-            FROM transactions
-            WHERE type = 'income' 
-            AND MONTH(date) = MONTH(CURDATE()) AND YEAR(date) = YEAR(CURDATE())
-            ORDER BY amount DESC
-            LIMIT 1
-        `);
-
-        // ===== TOTAL KESELURUHAN (ALL TIME) =====
-        const [allTimeSummary] = await pool.execute(`
-            SELECT 
-                SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END) as total_income,
-                SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END) as total_expense,
-                COUNT(*) as total_transactions,
-                MIN(date) as first_transaction_date
-            FROM transactions
-        `);
-
-        // ===== DATA 3 BULAN TERAKHIR (TREND) =====
+        // Trend 3 Bulan
         const [monthlyTrend] = await pool.execute(`
             SELECT 
                 DATE_FORMAT(date, '%M %Y') as bulan,
@@ -391,39 +369,57 @@ async function getTransactionContext(pool) {
                 SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END) as pengeluaran,
                 COUNT(*) as jumlah_transaksi
             FROM transactions
-            WHERE date >= DATE_SUB(CURDATE(), INTERVAL 3 MONTH)
+            WHERE ${baseFilter} AND date >= DATE_SUB(CURDATE(), INTERVAL 3 MONTH)
             GROUP BY YEAR(date), MONTH(date)
             ORDER BY YEAR(date) DESC, MONTH(date) DESC
             LIMIT 3
         `);
 
+        // Transaksi Terbesar Bulan Ini
+        const [biggestExpense] = await pool.execute(`
+            SELECT title, amount, category, DATE_FORMAT(date, '%d %b') as tanggal
+            FROM transactions
+            WHERE ${baseFilter} AND type = 'expense' 
+            AND MONTH(date) = MONTH(CURDATE()) AND YEAR(date) = YEAR(CURDATE())
+            ORDER BY amount DESC LIMIT 1
+        `);
+        const [biggestIncome] = await pool.execute(`
+            SELECT title, amount, category, DATE_FORMAT(date, '%d %b') as tanggal
+            FROM transactions
+            WHERE ${baseFilter} AND type = 'income' 
+            AND MONTH(date) = MONTH(CURDATE()) AND YEAR(date) = YEAR(CURDATE())
+            ORDER BY amount DESC LIMIT 1
+        `);
+
+
         return {
-            thisMonth: summaryThisMonth[0],
-            lastMonth: summaryLastMonth[0],
+            thisMonth: thisMonthSummary,
+            lastMonth: lastMonthSummary,
             today: {
-                summary: todaySummary[0],
+                summary: todaySummary,
                 transactions: todayTransactions
             },
             week: {
-                summary: weekSummary[0],
+                summary: weekSummary,
                 dailyBreakdown
             },
-            categories: {
-                topExpense: topExpenseCategories,
-                topIncome: topIncomeCategories
+            analysis: {
+                expense: expenseAnalysis, // List of {category, average, current, percentDiff}
+                income: incomeAnalysis,
+                totalAvgExpense: totalAverageExpense,
+                totalAvgIncome: totalAverageIncome
             },
-            recentTransactions,
-            dailyAverage: dailyAverage[0],
+            last30Days: last30DaysTransactions,
             biggest: {
                 expense: biggestExpense[0],
                 income: biggestIncome[0]
             },
-            allTime: allTimeSummary[0],
+            allTime: allTimeSummary,
             monthlyTrend
         };
     } catch (err) {
         console.error('Error getting transaction context:', err);
-        return null;
+        return null; // Don't crash the whole app, just return limited context
     }
 }
 
@@ -595,63 +591,50 @@ ${context.today.transactions.map(t => `   • [${t.jam}] ${t.title}: Rp ${t.amou
 ` : '   Belum ada transaksi hari ini'}
 
 ──────────────────────────────────────
-📆 7 HARI TERAKHIR:
-- Total Pemasukan: Rp ${(context.week?.summary?.total_income || 0).toLocaleString('id-ID')}
-- Total Pengeluaran: Rp ${(context.week?.summary?.total_expense || 0).toLocaleString('id-ID')}
-- Jumlah Transaksi: ${context.week?.summary?.total_transactions || 0}
-${context.week?.dailyBreakdown?.length > 0 ? `
-📊 Breakdown Per Hari:
-${context.week.dailyBreakdown.map(d => `   • ${d.hari}: +Rp ${(d.pemasukan || 0).toLocaleString('id-ID')} / -Rp ${(d.pengeluaran || 0).toLocaleString('id-ID')} (${d.jumlah_transaksi} transaksi)`).join('\n')}
-` : ''}
+📈 BULAN INI vs RATA-RATA HISTORIS (ANALISIS):
+
+💰 TOTAL RATA-RATA BULANAN:
+- Rata-rata Pemasukan: Rp ${Math.round(context.analysis?.totalAvgIncome || 0).toLocaleString('id-ID')} / bulan
+- Rata-rata Pengeluaran: Rp ${Math.round(context.analysis?.totalAvgExpense || 0).toLocaleString('id-ID')} / bulan
+
+📊 PERFORMA KATEGORI (Bulan Ini vs Rata-rata):
+${context.analysis?.expense?.length > 0 ? `📉 PENGELUARAN:` : ''}
+${context.analysis?.expense?.map(c => `   • ${c.category}:
+     - Rata-rata: Rp ${Math.round(c.average).toLocaleString('id-ID')}
+     - Bulan Ini: Rp ${Math.round(c.current).toLocaleString('id-ID')}
+     - Status: ${c.percentDiff > 0 ? `⚠️ Lebih boros ${c.percentDiff.toFixed(0)}%` : `✅ Lebih hemat ${Math.abs(c.percentDiff).toFixed(0)}%`}`).join('\n')}
+
+${context.analysis?.income?.length > 0 ? `📈 PEMASUKAN:` : ''}
+${context.analysis?.income?.map(c => `   • ${c.category}:
+     - Rata-rata: Rp ${Math.round(c.average).toLocaleString('id-ID')}
+     - Bulan Ini: Rp ${Math.round(c.current).toLocaleString('id-ID')}
+     - Status: ${c.percentDiff > 0 ? `🚀 Naik ${c.percentDiff.toFixed(0)}%` : `🔻 Turun ${Math.abs(c.percentDiff).toFixed(0)}%`}`).join('\n')}
 
 ──────────────────────────────────────
-📈 BULAN INI:
+📊 RINGKASAN BULAN INI:
 - Total Pemasukan: Rp ${(context.thisMonth?.total_income || 0).toLocaleString('id-ID')}
 - Total Pengeluaran: Rp ${(context.thisMonth?.total_expense || 0).toLocaleString('id-ID')}
 - Saldo Bulan Ini: Rp ${((context.thisMonth?.total_income || 0) - (context.thisMonth?.total_expense || 0)).toLocaleString('id-ID')}
 - Jumlah Transaksi: ${context.thisMonth?.total_transactions || 0}
-- Rata-rata Pengeluaran/Hari: Rp ${Math.round(context.dailyAverage?.avg_expense || 0).toLocaleString('id-ID')}
-- Rata-rata Pemasukan/Hari: Rp ${Math.round(context.dailyAverage?.avg_income || 0).toLocaleString('id-ID')}
 
 📊 PERBANDINGAN DENGAN BULAN LALU:
 - Pemasukan Bulan Lalu: Rp ${(context.lastMonth?.total_income || 0).toLocaleString('id-ID')}
 - Pengeluaran Bulan Lalu: Rp ${(context.lastMonth?.total_expense || 0).toLocaleString('id-ID')}
-- Perubahan Pemasukan: ${context.lastMonth?.total_income ? ((((context.thisMonth?.total_income || 0) - context.lastMonth.total_income) / context.lastMonth.total_income) * 100).toFixed(1) : 0}%
-- Perubahan Pengeluaran: ${context.lastMonth?.total_expense ? ((((context.thisMonth?.total_expense || 0) - context.lastMonth.total_expense) / context.lastMonth.total_expense) * 100).toFixed(1) : 0}%
 
-${context.monthlyTrend?.length > 0 ? `
-📊 TREND 3 BULAN TERAKHIR:
-${context.monthlyTrend.map(m => `   • ${m.bulan}: +Rp ${(m.pemasukan || 0).toLocaleString('id-ID')} / -Rp ${(m.pengeluaran || 0).toLocaleString('id-ID')} (${m.jumlah_transaksi} transaksi)`).join('\n')}
-` : ''}
-
-${context.categories?.topExpense?.length > 0 ? `
-🏷️ TOP 5 KATEGORI PENGELUARAN BULAN INI:
-${context.categories.topExpense.map((c, i) => `   ${i + 1}. ${c.category}: Rp ${c.total.toLocaleString('id-ID')} (${c.count}x)`).join('\n')}
-` : ''}
-${context.categories?.topIncome?.length > 0 ? `
-💰 TOP 5 SUMBER PEMASUKAN BULAN INI:
-${context.categories.topIncome.map((c, i) => `   ${i + 1}. ${c.category}: Rp ${c.total.toLocaleString('id-ID')} (${c.count}x)`).join('\n')}
-` : ''}
 ${context.biggest?.expense ? `
 🔥 PENGELUARAN TERBESAR BULAN INI:
    ${context.biggest.expense.title}: Rp ${context.biggest.expense.amount.toLocaleString('id-ID')} (${context.biggest.expense.category}) - ${context.biggest.expense.tanggal}
 ` : ''}
-${context.biggest?.income ? `
-🌟 PEMASUKAN TERBESAR BULAN INI:
-   ${context.biggest.income.title}: Rp ${context.biggest.income.amount.toLocaleString('id-ID')} (${context.biggest.income.category}) - ${context.biggest.income.tanggal}
-` : ''}
+
+──────────────────────────────────────
+🗓️ RIWAYAT TRANSAKSI (30 HARI TERAKHIR):
+${context.last30Days?.map(t => `• ${t.tanggal} - ${t.title}: Rp ${t.amount.toLocaleString('id-ID')} (${t.type === 'income' ? '📈' : '📉'} ${t.category})${t.wallet_name ? ` [${t.wallet_name}]` : ''}`).join('\n') || 'Belum ada transaksi'}
 
 ──────────────────────────────────────
 🏦 RINGKASAN ALL-TIME:
-- Total Pemasukan Sepanjang Masa: Rp ${(context.allTime?.total_income || 0).toLocaleString('id-ID')}
-- Total Pengeluaran Sepanjang Masa: Rp ${(context.allTime?.total_expense || 0).toLocaleString('id-ID')}
 - Saldo Bersih All-Time: Rp ${((context.allTime?.total_income || 0) - (context.allTime?.total_expense || 0)).toLocaleString('id-ID')}
 - Total Transaksi: ${context.allTime?.total_transactions || 0}
 ${context.allTime?.first_transaction_date ? `- Mulai Tercatat Sejak: ${new Date(context.allTime.first_transaction_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}` : ''}
-
-──────────────────────────────────────
-📝 10 TRANSAKSI TERAKHIR:
-${context.recentTransactions?.map(t => `• ${t.tanggal} - ${t.title}: Rp ${t.amount.toLocaleString('id-ID')} (${t.type === 'income' ? '📈' : '📉'} ${t.category})${t.wallet_name ? ` [${t.wallet_name}]` : ''}`).join('\n') || 'Belum ada transaksi'}
 
 ══════════════════════════════════════
 ` : 'Belum ada data keuangan.'}
