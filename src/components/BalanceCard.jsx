@@ -1,13 +1,36 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Wallet, ArrowUpRight, ArrowDownLeft, Sparkles } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { formatCurrency } from '../utils/formatters';
 import StatBox from './StatBox';
 import AIChatModal from './AIChatModal';
 
-export default function BalanceCard() {
-    const { stats, isScrolled } = useApp();
+export default function BalanceCard({ monthOnly = false }) {
+    const { stats: globalStats, transactions, isScrolled } = useApp();
     const [isAIOpen, setIsAIOpen] = useState(false);
+
+    const displayStats = useMemo(() => {
+        if (!monthOnly) return globalStats;
+
+        const now = new Date();
+        const currentMonthKey = `${now.getFullYear()}-${now.getMonth()}`;
+
+        return transactions
+            .filter(t => {
+                const d = new Date(t.date);
+                return `${d.getFullYear()}-${d.getMonth()}` === currentMonthKey && t.category !== 'Transfer';
+            })
+            .reduce((acc, t) => {
+                if (t.type === 'income') {
+                    acc.totalIncome += t.amount;
+                    acc.totalBalance += t.amount;
+                } else {
+                    acc.totalExpense += t.amount;
+                    acc.totalBalance -= t.amount;
+                }
+                return acc;
+            }, { totalBalance: 0, totalIncome: 0, totalExpense: 0 });
+    }, [globalStats, transactions, monthOnly]);
 
     return (
         <>
@@ -26,11 +49,13 @@ export default function BalanceCard() {
                         <Sparkles size={18} className="text-white group-hover:animate-pulse" />
                     </button>
 
-                    <p className="text-indigo-100 text-sm font-medium mb-1 opacity-80">Total Saldo Kamu</p>
-                    <h3 className="text-4xl font-black mb-6 tracking-tight">{formatCurrency(stats.totalBalance)}</h3>
+                    <p className="text-indigo-100 text-sm font-medium mb-1 opacity-80">
+                        {monthOnly ? 'Cashflow Bulan Ini' : 'Total Saldo Kamu'}
+                    </p>
+                    <h3 className="text-4xl font-black mb-6 tracking-tight">{formatCurrency(displayStats.totalBalance)}</h3>
                     <div className="flex gap-4">
-                        <StatBox label="Income" amount={stats.totalIncome} color="emerald" icon={ArrowUpRight} formatCurrency={formatCurrency} />
-                        <StatBox label="Expense" amount={stats.totalExpense} color="rose" icon={ArrowDownLeft} formatCurrency={formatCurrency} />
+                        <StatBox label="Income" amount={displayStats.totalIncome} color="emerald" icon={ArrowUpRight} formatCurrency={formatCurrency} />
+                        <StatBox label="Expense" amount={displayStats.totalExpense} color="rose" icon={ArrowDownLeft} formatCurrency={formatCurrency} />
                     </div>
                 </div>
             </div>

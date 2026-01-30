@@ -190,7 +190,7 @@ export default function HistoryPage() {
 
     return (
         <div className="space-y-6 animate-in fade-in duration-500">
-            <BalanceCard />
+            <BalanceCard monthOnly={false} />
 
             {/* Header with Filter Button */}
             <div className="flex items-center justify-between sticky top-16 md:top-24 bg-[#F9FAFB]/90 backdrop-blur-sm z-20 py-2">

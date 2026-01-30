@@ -24,7 +24,7 @@ export default function HomePage() {
 
     return (
         <div className="space-y-6 animate-in fade-in duration-500">
-            <BalanceCard />
+            <BalanceCard monthOnly={true} />
 
             <div className="flex items-center justify-between">
                 <h4 className="font-bold text-lg text-gray-800">Transaksi Terbaru</h4>
@@ -37,7 +37,7 @@ export default function HomePage() {
             </div>
 
             <TransactionList
-                transactions={transactions.filter(t => t.category !== 'Transfer').slice(0, 5)}
+                transactions={transactions.slice(0, 5)}
                 onDelete={(id) => setTransactionToDelete(id)}
                 onEdit={(tx) => setEditingTransaction(tx)}
             />

@@ -122,6 +122,94 @@ export default function AnalysisPage() {
     const activeData = activeTab === 'expense' ? expenseData : incomeData;
     const totalAmount = activeData.reduce((acc, curr) => acc + curr.amount, 0);
 
+    // Calculate Average Monthly Data (from ALL transactions)
+    const averageData = useMemo(() => {
+        // 1. Get all relevant transactions (ignore date filter, respect activeTab and exclude Transfer)
+        const relevantTxs = transactions.filter(t =>
+            t.type === activeTab && t.category !== 'Transfer'
+        );
+
+        if (relevantTxs.length === 0) return [];
+
+        // 2. Count distinct months in the dataset
+        const uniqueMonths = new Set(relevantTxs.map(t => {
+            const d = new Date(t.date);
+            return `${d.getFullYear()}-${d.getMonth()}`;
+        })).size;
+
+        const monthsCount = uniqueMonths || 1;
+
+        // 3. Group by category and calculate total
+        const groups = relevantTxs.reduce((acc, curr) => {
+            acc[curr.category] = (acc[curr.category] || 0) + curr.amount;
+            return acc;
+        }, {});
+
+        // Calculate total average for this type (income/expense)
+        const totalAverage = Object.values(groups).reduce((acc, val) => acc + val, 0) / monthsCount;
+
+        // 4. Get Current Month Data
+        const now = new Date();
+        const currentMonthKey = `${now.getFullYear()}-${now.getMonth()}`;
+        const currentMonthTxs = relevantTxs.filter(t => {
+            const d = new Date(t.date);
+            return `${d.getFullYear()}-${d.getMonth()}` === currentMonthKey;
+        });
+
+        const currentMonthGroups = currentMonthTxs.reduce((acc, curr) => {
+            acc[curr.category] = (acc[curr.category] || 0) + curr.amount;
+            return acc;
+        }, {});
+
+
+        // 5. Calculate metrics and sort
+        return Object.entries(groups)
+            .map(([name, total]) => {
+                const average = total / monthsCount;
+                const percentOfAverage = totalAverage > 0 ? (average / totalAverage) * 100 : 0;
+
+                const currentAmount = currentMonthGroups[name] || 0;
+                // Comparison: (Current - Average) / Average * 100
+                const percentDiff = average > 0 ? ((currentAmount - average) / average) * 100 : 0;
+
+                return {
+                    name,
+                    average,
+                    percentOfAverage,
+                    currentAmount,
+                    percentDiff,
+                    color: catColors[name] || '#CBD5E1'
+                };
+            })
+            .sort((a, b) => b.average - a.average);
+    }, [transactions, activeTab, catColors]);
+
+    // Calculate Average Monthly Total Income & Expense
+    const averageTotals = useMemo(() => {
+        // Exclude Transfer
+        const relevantTxs = transactions.filter(t => t.category !== 'Transfer');
+        if (relevantTxs.length === 0) return { income: 0, expense: 0 };
+
+        // Count unique months
+        const uniqueMonths = new Set(relevantTxs.map(t => {
+            const d = new Date(t.date);
+            return `${d.getFullYear()}-${d.getMonth()}`;
+        })).size;
+
+        const monthsCount = uniqueMonths || 1;
+
+        const totals = relevantTxs.reduce((acc, t) => {
+            if (t.type === 'income') acc.income += t.amount;
+            else if (t.type === 'expense') acc.expense += t.amount;
+            return acc;
+        }, { income: 0, expense: 0 });
+
+        return {
+            income: totals.income / monthsCount,
+            expense: totals.expense / monthsCount
+        };
+    }, [transactions]);
+
     // Recalculate start positions based on sorted order
     const sortedData = useMemo(() => {
         let lastPercentage = 0;
@@ -612,6 +700,96 @@ export default function AnalysisPage() {
 
             {/* Additional Analysis Charts */}
             <AnalysisCharts transactions={transactions} />
+
+            {/* Average Monthly Analysis */}
+            <div className="bg-white rounded-[32px] p-6 shadow-sm border border-gray-50">
+
+
+                <div className="mb-6">
+                    <h3 className="text-lg font-bold text-gray-800">Rata-rata Bulanan</h3>
+                    <p className="text-xs text-gray-400">Estimasi {activeTab === 'expense' ? 'pengeluaran' : 'pemasukan'} rata-rata per kategori (berdasarkan seluruh riwayat)</p>
+                </div>
+
+                {/* Average Totals Summary */}
+                <div className="grid grid-cols-2 gap-4 mb-6">
+                    <div className="bg-emerald-50 p-4 rounded-2xl border border-emerald-100">
+                        <div className="flex items-center gap-2 mb-2">
+                            <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600">
+                                <ArrowUpRight size={16} />
+                            </div>
+                            <span className="text-xs font-bold text-emerald-700">Pemasukan</span>
+                        </div>
+                        <p className="text-lg font-black text-gray-800">{formatCurrency(averageTotals.income)}</p>
+                        <p className="text-[10px] text-gray-400 font-medium">/ bulan</p>
+                    </div>
+                    <div className="bg-rose-50 p-4 rounded-2xl border border-rose-100">
+                        <div className="flex items-center gap-2 mb-2">
+                            <div className="w-8 h-8 rounded-full bg-rose-100 flex items-center justify-center text-rose-600">
+                                <ArrowDownLeft size={16} />
+                            </div>
+                            <span className="text-xs font-bold text-rose-700">Pengeluaran</span>
+                        </div>
+                        <p className="text-lg font-black text-gray-800">{formatCurrency(averageTotals.expense)}</p>
+                        <p className="text-[10px] text-gray-400 font-medium">/ bulan</p>
+                    </div>
+                </div>
+
+                <div className="space-y-3">
+                    {averageData.map((item) => (
+                        <div key={item.name} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-gray-50 rounded-2xl hover:bg-gray-100 transition-colors gap-3">
+                            <div className="flex items-center gap-4 flex-1">
+                                <div
+                                    className="w-10 h-10 rounded-full flex items-center justify-center text-white text-md font-bold shadow-sm flex-shrink-0"
+                                    style={{ backgroundColor: item.color }}
+                                >
+                                    {item.name.charAt(0)}
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                    <p className="text-sm font-bold text-gray-800 truncate">{item.name}</p>
+                                    <div className="flex items-center gap-2">
+                                        <p className="text-[10px] text-gray-400 font-medium">
+                                            Kontribusi: <span className="text-gray-600 font-bold">{item.percentOfAverage.toFixed(1)}%</span> dari total
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="flex items-center gap-4 justify-between sm:justify-end flex-1 pl-14 sm:pl-0">
+                                {/* Average Column */}
+                                <div className="text-right">
+                                    <p className="text-[10px] text-gray-400 uppercase tracking-wider font-bold mb-0.5">Rata-rata</p>
+                                    <p className={`font-bold text-gray-800 ${activeTab === 'expense' ? 'text-rose-600' : 'text-emerald-600'}`}>
+                                        {formatCurrency(item.average)}
+                                    </p>
+                                </div>
+
+                                {/* Divider */}
+                                <div className="w-px h-8 bg-gray-200 hidden sm:block"></div>
+
+                                {/* Current Month Column */}
+                                <div className="text-right min-w-[80px]">
+                                    <p className="text-[10px] text-gray-400 uppercase tracking-wider font-bold mb-0.5">Bulan Ini</p>
+                                    <p className="font-bold text-gray-800">
+                                        {formatCurrency(item.currentAmount)}
+                                    </p>
+                                    <div className={`text-[10px] font-bold flex items-center justify-end gap-0.5 ${item.percentDiff > 0
+                                            ? (activeTab === 'expense' ? 'text-rose-500' : 'text-emerald-500')
+                                            : (activeTab === 'expense' ? 'text-emerald-500' : 'text-rose-500')
+                                        }`}>
+                                        {item.percentDiff > 0 ? <TrendingUp size={10} /> : <TrendingUp size={10} className="rotate-180" />}
+                                        {Math.abs(item.percentDiff).toFixed(0)}%
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                    {averageData.length === 0 && (
+                        <div className="text-center py-8 text-gray-400 text-sm">
+                            Belum ada data untuk dianalisis
+                        </div>
+                    )}
+                </div>
+            </div>
         </div>
     );
 }
