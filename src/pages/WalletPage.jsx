@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { CreditCard, Wallet, Plus, ArrowUpRight, ArrowDownLeft, MoreHorizontal, Eye, EyeOff, Trash2, Loader2 } from 'lucide-react';
+import { CreditCard, Wallet, Plus, ArrowUpRight, ArrowDownLeft, MoreHorizontal, Eye, EyeOff, Trash2, Loader2, Clock } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import toast from 'react-hot-toast';
 
@@ -47,6 +47,7 @@ export default function WalletPage() {
     // Separate wallets by type
     const bankWallets = useMemo(() => wallets.filter(w => w.type === 'bank' || w.type === 'credit'), [wallets]);
     const eWallets = useMemo(() => wallets.filter(w => w.type === 'ewallet'), [wallets]);
+    const paylaterWallets = useMemo(() => wallets.filter(w => w.type === 'paylater'), [wallets]);
     const cashWallets = useMemo(() => wallets.filter(w => w.type === 'cash'), [wallets]);
 
     // Calculate total balance from wallets
@@ -54,12 +55,26 @@ export default function WalletPage() {
         return wallets.reduce((acc, w) => acc + w.balance, 0);
     }, [wallets]);
 
-    // Wallet transactions (filtering transactions that have wallet_id)
+    // Wallet transactions (filtering only transfer transactions)
     const walletTransactions = useMemo(() => {
         return transactions
-            .filter(t => t.wallet_id)
+            .filter(t => t.category === 'Transfer')
+            .map(t => {
+                // Find the wallet for this transaction
+                const wallet = wallets.find(w => w.id === t.wallet_id);
+                const walletName = wallet?.name || 'Unknown Wallet';
+
+                // Add wallet info to transaction display
+                return {
+                    ...t,
+                    walletInfo: walletName,
+                    displayTitle: t.type === 'expense'
+                        ? `${t.title} (dari ${walletName})`
+                        : `${t.title} (ke ${walletName})`
+                };
+            })
             .slice(0, 10); // Latest 10 transactions
-    }, [transactions]);
+    }, [transactions, wallets]);
 
     const formatCurrency = (amount) => {
         return new Intl.NumberFormat('id-ID', {
@@ -69,19 +84,7 @@ export default function WalletPage() {
         }).format(amount);
     };
 
-    // Gradient presets for wallets
-    const getGradientClass = (color) => {
-        const gradientMap = {
-            'from-blue-600 to-indigo-700': 'from-blue-600 to-indigo-700',
-            'from-violet-600 to-indigo-600': 'from-violet-600 to-indigo-600',
-            'from-emerald-500 to-teal-700': 'from-emerald-500 to-teal-700',
-            'from-rose-500 to-pink-600': 'from-rose-500 to-pink-600',
-            'from-orange-500 to-red-600': 'from-orange-500 to-red-600',
-            'from-gray-800 to-gray-900': 'from-gray-800 to-gray-900',
-            'from-sky-500 to-blue-600': 'from-sky-500 to-blue-600',
-        };
-        return gradientMap[color] || 'from-blue-600 to-indigo-700';
-    };
+
 
     const handleDeleteWallet = async () => {
         if (!confirmDelete.wallet) return;
@@ -160,10 +163,11 @@ export default function WalletPage() {
                         {bankWallets.map((card) => (
                             <div
                                 key={card.id}
-                                className={`snap-center shrink-0 ${showAllWallets ? 'w-full' : 'w-[300px]'} h-[190px] rounded-3xl p-6 relative overflow-hidden shadow-xl bg-gradient-to-br ${getGradientClass(card.color)} text-white flex flex-col justify-between transition-all hover:scale-[1.02]`}
+                                className={`snap-center shrink-0 ${showAllWallets ? 'w-full' : 'w-[300px]'} h-[190px] rounded-3xl p-6 relative overflow-hidden shadow-xl text-white flex flex-col justify-between transition-all hover:scale-[1.02]`}
+                                style={{ backgroundColor: card.color || '#4F46E5' }}
                             >
                                 {/* Background Pattern */}
-                                <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-2xl pointer-events-none"></div>
+                                <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2 blur-2xl pointer-events-none"></div>
 
                                 <div className="flex justify-between items-start z-10">
                                     <div>
@@ -263,7 +267,34 @@ export default function WalletPage() {
                 </section>
             )}
 
-            {/* Cash Wallet Section */}
+            {/* Paylater Section */}
+            {paylaterWallets.length > 0 && (
+                <section className="px-4 space-y-3">
+                    <h2 className="font-semibold text-gray-800">Paylater</h2>
+                    <div className="grid grid-cols-2 gap-3">
+                        {paylaterWallets.map((wallet) => (
+                            <div
+                                key={wallet.id}
+                                className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm hover:shadow-md transition-all"
+                            >
+                                <div className="flex justify-between items-start mb-3">
+                                    <div className="p-2 rounded-xl" style={{ backgroundColor: `${wallet.color || '#EA580C'}20` }}>
+                                        <Clock size={20} style={{ color: wallet.color || '#EA580C' }} />
+                                    </div>
+                                    <button
+                                        onClick={() => setConfirmDelete({ isOpen: true, wallet })}
+                                        className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
+                                    >
+                                        <Trash2 size={14} className="text-gray-400" />
+                                    </button>
+                                </div>
+                                <p className="text-sm font-semibold text-gray-800">{wallet.name}</p>
+                                <p className="text-lg font-bold text-gray-900 mt-1">{formatCurrency(wallet.balance)}</p>
+                            </div>
+                        ))}
+                    </div>
+                </section>
+            )}
             <section className="px-4">
                 <div className="flex justify-between items-end mb-3">
                     <h2 className="font-semibold text-gray-800">Cash Wallet</h2>

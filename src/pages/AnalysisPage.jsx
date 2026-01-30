@@ -61,15 +61,20 @@ export default function AnalysisPage() {
         }
     };
 
-    // Filter transactions by date range
+    // Filter transactions by date range (exclude Transfer category)
     const filteredTransactions = useMemo(() => {
         const range = getDateRange();
-        if (!range.start && !range.end) return transactions;
 
         return transactions.filter(t => {
-            const txDate = new Date(t.date);
-            if (range.start && txDate < range.start) return false;
-            if (range.end && txDate > range.end) return false;
+            // Exclude transfer transactions
+            if (t.category === 'Transfer') return false;
+
+            // Date filter
+            if (range.start || range.end) {
+                const txDate = new Date(t.date);
+                if (range.start && txDate < range.start) return false;
+                if (range.end && txDate > range.end) return false;
+            }
             return true;
         });
     }, [transactions, dateFilter, customRange]);

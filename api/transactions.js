@@ -36,8 +36,8 @@ export default async function handler(req, res) {
                 [title, amount, category, type, date, wallet_id || null]
             );
 
-            // If wallet_id is provided, update wallet balance
-            if (wallet_id) {
+            // If wallet_id is provided and !skip_balance_update, update wallet balance
+            if (wallet_id && !req.body.skip_balance_update) {
                 const balanceChange = type === 'income' ? amount : -amount;
                 await pool.execute(
                     'UPDATE wallets SET balance = balance + ? WHERE id = ?',

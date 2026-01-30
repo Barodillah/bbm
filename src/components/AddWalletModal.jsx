@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Loader2, CreditCard, Smartphone, Wallet, Banknote } from 'lucide-react';
+import { X, Loader2, CreditCard, Smartphone, Wallet, Banknote, Clock } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useApp } from '../context/AppContext';
 
@@ -10,7 +10,7 @@ export default function AddWalletModal({ isOpen, onClose }) {
     const [name, setName] = useState('');
     const [accountNumber, setAccountNumber] = useState('');
     const [balance, setBalance] = useState('');
-    const [selectedColor, setSelectedColor] = useState('from-blue-600 to-indigo-700');
+    const [selectedColor, setSelectedColor] = useState('#4F46E5');
     const [isLoading, setIsLoading] = useState(false);
 
     if (!isOpen) return null;
@@ -19,17 +19,17 @@ export default function AddWalletModal({ isOpen, onClose }) {
         { id: 'bank', label: 'Bank', icon: <CreditCard size={18} /> },
         { id: 'credit', label: 'Credit', icon: <Wallet size={18} /> },
         { id: 'ewallet', label: 'e-Wallet', icon: <Smartphone size={18} /> },
-        { id: 'cash', label: 'Cash', icon: <Banknote size={18} /> },
+        { id: 'paylater', label: 'Paylater', icon: <Clock size={18} /> },
     ];
 
-    const gradients = [
-        { name: 'Blue', value: 'from-blue-600 to-indigo-700' },
-        { name: 'Purple', value: 'from-violet-600 to-indigo-600' },
-        { name: 'Emerald', value: 'from-emerald-500 to-teal-700' },
-        { name: 'Rose', value: 'from-rose-500 to-pink-600' },
-        { name: 'Orange', value: 'from-orange-500 to-red-600' },
-        { name: 'Dark', value: 'from-gray-800 to-gray-900' },
-        { name: 'Sky', value: 'from-sky-500 to-blue-600' },
+    const colorOptions = [
+        { name: 'Indigo', value: '#4F46E5' },
+        { name: 'Purple', value: '#7C3AED' },
+        { name: 'Emerald', value: '#059669' },
+        { name: 'Rose', value: '#E11D48' },
+        { name: 'Orange', value: '#EA580C' },
+        { name: 'Dark', value: '#1F2937' },
+        { name: 'Sky', value: '#0284C7' },
     ];
 
     const handleSubmit = async () => {
@@ -57,7 +57,7 @@ export default function AddWalletModal({ isOpen, onClose }) {
             setAccountNumber('');
             setBalance('');
             setType('bank');
-            setSelectedColor('from-blue-600 to-indigo-700');
+            setSelectedColor('#4F46E5');
 
             onClose();
         } catch (err) {
@@ -147,14 +147,14 @@ export default function AddWalletModal({ isOpen, onClose }) {
                     <div>
                         <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 block ml-1">Warna Kartu</label>
                         <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
-                            {gradients.map((grad) => (
+                            {colorOptions.map((color) => (
                                 <button
-                                    key={grad.name}
-                                    onClick={() => setSelectedColor(grad.value)}
-                                    className={`w-12 h-12 rounded-full bg-gradient-to-br ${grad.value} relative shrink-0 transition-transform active:scale-95 ${selectedColor === grad.value ? 'ring-2 ring-offset-2 ring-indigo-500' : ''
-                                        }`}
+                                    key={color.name}
+                                    onClick={() => setSelectedColor(color.value)}
+                                    className={`w-12 h-12 rounded-full relative shrink-0 transition-transform active:scale-95 ${selectedColor === color.value ? 'ring-2 ring-offset-2 ring-indigo-500' : ''}`}
+                                    style={{ backgroundColor: color.value }}
                                 >
-                                    {selectedColor === grad.value && (
+                                    {selectedColor === color.value && (
                                         <div className="absolute inset-0 flex items-center justify-center">
                                             <div className="w-2 h-2 bg-white rounded-full shadow-sm" />
                                         </div>
@@ -167,8 +167,8 @@ export default function AddWalletModal({ isOpen, onClose }) {
                     {/* Preview Card */}
                     <div>
                         <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 block ml-1">Preview</label>
-                        <div className={`w-full h-24 bg-gradient-to-br ${selectedColor} rounded-2xl p-4 text-white relative overflow-hidden`}>
-                            <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-2xl"></div>
+                        <div className="w-full h-24 rounded-2xl p-4 text-white relative overflow-hidden" style={{ backgroundColor: selectedColor }}>
+                            <div className="absolute top-0 right-0 w-32 h-32 bg-white/20 rounded-full -translate-y-1/2 translate-x-1/2 blur-2xl"></div>
                             <div className="flex justify-between items-start">
                                 <div>
                                     <p className="text-xs opacity-80">{name || 'Nama Wallet'}</p>

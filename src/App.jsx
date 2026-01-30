@@ -13,6 +13,7 @@ import WalletPage from './pages/WalletPage';
 import AnalysisPage from './pages/AnalysisPage';
 import CategorySettingsPage from './pages/CategorySettingsPage';
 import AIPage from './pages/AIPage';
+import MigrationPage from './pages/MigrationPage';
 import { Toaster } from 'react-hot-toast';
 
 export default function App() {
@@ -31,7 +32,7 @@ export default function App() {
   const isAIPage = location.pathname === '/ai';
 
   // Hide balance card on analysis and categories page
-  const showBalanceCard = !['analysis', 'categories'].includes(location.pathname.replace('/', '') || 'home');
+  const showBalanceCard = !['analysis', 'categories', 'migrasi'].includes(location.pathname.replace('/', '') || 'home');
 
   // Fullscreen layout for AI page
   if (isAIPage) {
@@ -57,6 +58,7 @@ export default function App() {
               <Route path="/wallet" element={<WalletPage />} />
               <Route path="/analysis" element={<AnalysisPage />} />
               <Route path="/categories" element={<CategorySettingsPage />} />
+              <Route path="/migrasi" element={<MigrationPage />} />
             </Routes>
           </div>
         </div>

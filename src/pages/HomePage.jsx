@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronRight } from 'lucide-react';
 import { useApp } from '../context/AppContext';
@@ -37,7 +37,7 @@ export default function HomePage() {
             </div>
 
             <TransactionList
-                transactions={transactions.slice(0, 5)}
+                transactions={transactions.filter(t => t.category !== 'Transfer').slice(0, 5)}
                 onDelete={(id) => setTransactionToDelete(id)}
                 onEdit={(tx) => setEditingTransaction(tx)}
             />

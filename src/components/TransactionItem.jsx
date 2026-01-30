@@ -51,7 +51,7 @@ export default function TransactionItem({ tx, onDelete, onEdit, customIconClass,
                     {tx.type === 'income' ? <ArrowUpRight size={24} /> : <ArrowDownLeft size={24} />}
                 </div>
                 <div className="flex-1">
-                    <p className="font-bold text-gray-800 leading-tight mb-1 capitalize">{tx.title}</p>
+                    <p className="font-bold text-gray-800 leading-tight mb-1 capitalize">{tx.displayTitle || tx.title}</p>
                     <span
                         className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full text-white inline-block"
                         style={{ backgroundColor: catColors[tx.category] || '#9CA3AF' }}

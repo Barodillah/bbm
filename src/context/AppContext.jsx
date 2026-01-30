@@ -41,6 +41,9 @@ export function AppProvider({ children }) {
     // Computed stats
     const stats = useMemo(() => {
         return transactions.reduce((acc, t) => {
+            // Exclude transfer transactions from stats calculation
+            if (t.category === 'Transfer') return acc;
+
             if (t.type === 'income') {
                 acc.totalIncome += t.amount;
                 acc.totalBalance += t.amount;

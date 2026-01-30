@@ -64,6 +64,9 @@ export default function HistoryPage() {
         const range = getDateRange();
 
         return transactions.filter(t => {
+            // Exclude transfer transactions
+            if (t.category === 'Transfer') return false;
+
             // Date filter
             if (range.start || range.end) {
                 const txDate = new Date(t.date);

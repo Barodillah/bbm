@@ -24,7 +24,8 @@ export default function AnalysisCharts({ transactions }) {
             });
         }
 
-        transactions.forEach(t => {
+        // Filter out Transfer transactions
+        transactions.filter(t => t.category !== 'Transfer').forEach(t => {
             const d = new Date(t.date);
             const key = `${d.getFullYear()}-${d.getMonth()}`;
             const monthData = data.find(m => m.key === key);
@@ -61,7 +62,8 @@ export default function AnalysisCharts({ transactions }) {
             });
         }
 
-        transactions.forEach(t => {
+        // Filter out Transfer transactions
+        transactions.filter(t => t.category !== 'Transfer').forEach(t => {
             const dateStr = t.date.split('T')[0]; // Assuming YYYY-MM-DD or ISO
             // Find if date exists in our range (ignoring time)
             // Ideally match exact date string if format is consistent
