@@ -5,11 +5,12 @@ import { formatCurrency } from '../utils/formatters';
 import StatBox from './StatBox';
 import AIChatModal from './AIChatModal';
 
-export default function BalanceCard({ monthOnly = false }) {
+export default function BalanceCard({ monthOnly = false, customStats = null }) {
     const { stats: globalStats, transactions, isScrolled } = useApp();
     const [isAIOpen, setIsAIOpen] = useState(false);
 
     const displayStats = useMemo(() => {
+        if (customStats) return customStats;
         if (!monthOnly) return globalStats;
 
         const now = new Date();
@@ -30,7 +31,7 @@ export default function BalanceCard({ monthOnly = false }) {
                 }
                 return acc;
             }, { totalBalance: 0, totalIncome: 0, totalExpense: 0 });
-    }, [globalStats, transactions, monthOnly]);
+    }, [globalStats, transactions, monthOnly, customStats]);
 
     return (
         <>
@@ -50,7 +51,7 @@ export default function BalanceCard({ monthOnly = false }) {
                     </button>
 
                     <p className="text-indigo-100 text-sm font-medium mb-1 opacity-80">
-                        {monthOnly ? 'Cashflow Bulan Ini' : 'Total Saldo Kamu'}
+                        {monthOnly ? 'Cashflow Bulan Ini' : 'Total Cashflow Kamu'}
                     </p>
                     <h3 className="text-4xl font-black mb-6 tracking-tight">{formatCurrency(displayStats.totalBalance)}</h3>
                     <div className="flex gap-4">

@@ -1,6 +1,6 @@
 
 import { useState, useMemo } from 'react';
-import { Filter, X, Calendar, ChevronDown, ArrowUpRight, ArrowDownLeft, Check, Download, Copy } from 'lucide-react';
+import { Filter, X, Calendar, ChevronDown, ArrowUpRight, ArrowDownLeft, Check, Download, Copy, Wallet } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import BalanceCard from '../components/BalanceCard';
 import TransactionList from '../components/TransactionList';
@@ -10,7 +10,7 @@ import toast from 'react-hot-toast';
 import DateInput from '../components/DateInput';
 
 export default function HistoryPage() {
-    const { transactions, deleteTransaction, categories, catColors } = useApp();
+    const { transactions, deleteTransaction, categories, catColors, wallets } = useApp();
     const [editingTransaction, setEditingTransaction] = useState(null);
     const [transactionToDelete, setTransactionToDelete] = useState(null);
     const [showFilters, setShowFilters] = useState(false);
@@ -27,6 +27,7 @@ export default function HistoryPage() {
     const [dateFilter, setDateFilter] = useState('all'); // 'week' | 'month' | 'year' | 'all' | 'custom'
     const [customRange, setCustomRange] = useState({ start: '', end: '' });
     const [typeFilter, setTypeFilter] = useState('all'); // 'all' | 'income' | 'expense'
+    const [walletFilter, setWalletFilter] = useState('all');
     const [selectedCategories, setSelectedCategories] = useState([]);
 
     // Get date range based on filter
@@ -80,9 +81,12 @@ export default function HistoryPage() {
             // Category filter
             if (selectedCategories.length > 0 && !selectedCategories.includes(t.category)) return false;
 
+            // Wallet filter
+            if (walletFilter !== 'all' && t.wallet_id !== walletFilter) return false;
+
             return true;
         });
-    }, [transactions, dateFilter, customRange, typeFilter, selectedCategories]);
+    }, [transactions, dateFilter, customRange, typeFilter, selectedCategories, walletFilter]);
 
     // Get unique categories from transactions
     const availableCategories = useMemo(() => {
@@ -95,9 +99,27 @@ export default function HistoryPage() {
         let count = 0;
         if (dateFilter !== 'all') count++;
         if (typeFilter !== 'all') count++;
+        if (walletFilter !== 'all') count++;
         if (selectedCategories.length > 0) count++;
         return count;
-    }, [dateFilter, typeFilter, selectedCategories]);
+    }, [dateFilter, typeFilter, selectedCategories, walletFilter]);
+
+    // Calculate stats based on filtered transactions
+    const filteredStats = useMemo(() => {
+        // If no filter is active, return null to use global stats in BalanceCard
+        if (activeFilterCount === 0) return null;
+
+        return filteredTransactions.reduce((acc, t) => {
+            if (t.type === 'income') {
+                acc.totalIncome += t.amount;
+                acc.totalBalance += t.amount;
+            } else {
+                acc.totalExpense += t.amount;
+                acc.totalBalance -= t.amount;
+            }
+            return acc;
+        }, { totalBalance: 0, totalIncome: 0, totalExpense: 0 });
+    }, [filteredTransactions, activeFilterCount]);
 
     const toggleCategory = (cat) => {
         setSelectedCategories(prev =>
@@ -111,6 +133,7 @@ export default function HistoryPage() {
         setDateFilter('all');
         setCustomRange({ start: '', end: '' });
         setTypeFilter('all');
+        setWalletFilter('all');
         setSelectedCategories([]);
     };
 
@@ -190,7 +213,7 @@ export default function HistoryPage() {
 
     return (
         <div className="space-y-6 animate-in fade-in duration-500">
-            <BalanceCard monthOnly={false} />
+            <BalanceCard monthOnly={false} customStats={filteredStats} />
 
             {/* Header with Filter Button */}
             <div className="flex items-center justify-between sticky top-16 md:top-24 bg-[#F9FAFB]/90 backdrop-blur-sm z-20 py-2">
@@ -262,6 +285,35 @@ export default function HistoryPage() {
                                 <ArrowUpRight size={16} />
                                 Masuk
                             </button>
+                        </div>
+                    </div>
+
+                    {/* Wallet Filter */}
+                    <div>
+                        <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Wallet</p>
+                        <div className="flex flex-wrap gap-2">
+                            <button
+                                onClick={() => setWalletFilter('all')}
+                                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border ${walletFilter === 'all'
+                                    ? 'bg-indigo-600 text-white border-indigo-600'
+                                    : 'bg-white text-gray-500 border-gray-100 hover:bg-gray-50'
+                                    }`}
+                            >
+                                Semua Wallet
+                            </button>
+                            {wallets.map(wallet => (
+                                <button
+                                    key={wallet.id}
+                                    onClick={() => setWalletFilter(wallet.id)}
+                                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border flex items-center gap-1.5 ${walletFilter === wallet.id
+                                        ? 'bg-indigo-600 text-white border-indigo-600'
+                                        : 'bg-white text-gray-500 border-gray-100 hover:bg-gray-50'
+                                        }`}
+                                >
+                                    <Wallet size={12} />
+                                    {wallet.name}
+                                </button>
+                            ))}
                         </div>
                     </div>
 
@@ -393,6 +445,16 @@ export default function HistoryPage() {
                         <span className="inline-flex items-center gap-1 bg-purple-100 text-purple-600 px-2 py-1 rounded-full text-xs font-medium">
                             {selectedCategories.length} kategori
                             <button onClick={() => setSelectedCategories([])} className="hover:bg-black/10 rounded-full p-0.5">
+                                <X size={10} />
+                            </button>
+                        </span>
+                    )}
+
+                    {walletFilter !== 'all' && (
+                        <span className="inline-flex items-center gap-1 bg-amber-100 text-amber-700 px-2 py-1 rounded-full text-xs font-medium">
+                            <Wallet size={12} />
+                            {wallets.find(w => w.id === walletFilter)?.name || 'Unknown Wallet'}
+                            <button onClick={() => setWalletFilter('all')} className="hover:bg-black/10 rounded-full p-0.5">
                                 <X size={10} />
                             </button>
                         </span>
