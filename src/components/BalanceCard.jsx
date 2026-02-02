@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Wallet, ArrowUpRight, ArrowDownLeft, Sparkles } from 'lucide-react';
+import { Wallet, ArrowUpRight, ArrowDownLeft, RefreshCw } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { formatCurrency } from '../utils/formatters';
 import StatBox from './StatBox';
@@ -41,13 +41,13 @@ export default function BalanceCard({ monthOnly = false, customStats = null }) {
                         <Wallet size={200} />
                     </div>
 
-                    {/* AI Button - Top Right */}
+                    {/* Refresh Button - Top Right */}
                     <button
-                        onClick={() => setIsAIOpen(true)}
+                        onClick={() => window.location.reload()}
                         className="absolute top-4 right-4 w-10 h-10 bg-white/20 hover:bg-white/30 backdrop-blur-sm rounded-xl flex items-center justify-center transition-all hover:scale-110 active:scale-95 group z-10"
-                        title="AI Assistant"
+                        title="Reload Page"
                     >
-                        <Sparkles size={18} className="text-white group-hover:animate-pulse" />
+                        <RefreshCw size={18} className="text-white group-hover:rotate-180 transition-transform duration-500" />
                     </button>
 
                     <p className="text-indigo-100 text-sm font-medium mb-1 opacity-80">

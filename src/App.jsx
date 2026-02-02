@@ -45,7 +45,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#F9FAFB] text-gray-900 flex flex-col md:flex-row">
-      <Sidebar />
+      <Sidebar onOpenAI={() => setIsAIOpen(true)} />
 
       <main className="flex-1 pb-24 md:pb-8 flex flex-col items-center">
         <div className="w-full max-w-[1200px] px-0 md:px-8">
