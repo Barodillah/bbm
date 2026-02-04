@@ -66,7 +66,9 @@ export default function WalletTransactionModal({ isOpen, onClose, initialType = 
                 toast.error('Wallet sumber dan tujuan tidak boleh sama');
                 return;
             }
-            if (sourceWallet && sourceWallet.balance < currentTotal) {
+            // Allow credit and paylater wallets to transfer even with negative balance
+            const allowNegativeBalance = sourceWallet?.type === 'credit' || sourceWallet?.type === 'paylater';
+            if (sourceWallet && sourceWallet.balance < currentTotal && !allowNegativeBalance) {
                 toast.error('Saldo tidak mencukupi');
                 return;
             }
